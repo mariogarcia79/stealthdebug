@@ -8,5 +8,6 @@ scrape_configs:
 
 remote_write:
   - url: https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push
-    authorization:
-      signing_token: "<SIGNING_TOKEN>"
+    basic_auth:
+      username: 2863039
+      password: "<SIGNING_TOKEN>"
