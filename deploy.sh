@@ -79,6 +79,14 @@ echo "Built frontend container image."
 systemctl --user restart webpage-pod.service
 echo "Launched webpage pod."
 
+# launch the observability pod
+systemctl --user restart observability-pod.service
+echo "Launched observability pod."
+
 # check status of the webpage pod
 systemctl --user status webpage-pod.service --no-pager
 echo "Checked status of webpage pod."
+
+# check status of the observability pod
+systemctl --user status observability-pod.service
+echo "Checked status of observability pod."
