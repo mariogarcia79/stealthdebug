@@ -6,6 +6,10 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9882"]
 
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ['localhost:9090']
+
 remote_write:
   - url: https://prometheus-prod-65-prod-eu-west-2.grafana.net/api/prom/push
     basic_auth:
