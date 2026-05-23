@@ -4,7 +4,7 @@ After=backend.service frontend.service
 Requires=backend.service frontend.service
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.1-alpine-slim
 Pod=webpage.pod
 ContainerName=nginx
 Volume=%h/.config/containers/nginx:/etc/nginx:ro,Z
