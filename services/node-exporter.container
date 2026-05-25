@@ -1,18 +1,15 @@
 [Unit]
 Description=Prometheus Node Exporter
-After=network-online.target
-Wants=network-online.target
+After=observability-pod.service
+Wants=observability-pod.service
 
 [Container]
 Image=docker.io/prom/node-exporter:latest
+Pod=observability.pod
 ContainerName=node-exporter
-
-PublishPort=9100:9100
-
 Volume=/proc:/host/proc:ro,rslave
 Volume=/sys:/host/sys:ro,rslave
 Volume=/:/host:ro,rslave
-
 Exec=--path.procfs=/host/proc \
      --path.sysfs=/host/sys \
      --path.rootfs=/host

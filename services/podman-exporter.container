@@ -1,12 +1,12 @@
 [Unit]
-Description=Podman Prometheus Exporter
+Description=Prometheus Podman Exporter
 After=observability-pod.service
 Requires=observability-pod.service
 
 [Container]
 Image=quay.io/navidys/prometheus-podman-exporter:latest
 Pod=observability.pod
-ContainerName=exporter
+ContainerName=podman-exporter
 Environment=CONTAINER_HOST=unix:///run/podman/podman.sock
 Volume=/run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro
 UserNS=keep-id:uid=65534
