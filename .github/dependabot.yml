@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  # Keep GitHub Actions pinned SHAs current
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies
+
+  # Backend npm dependencies
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps(backend)"
+    labels:
+      - dependencies
+    # Group all non-security updates into one PR to reduce noise
+    groups:
+      backend-non-security:
+        update-types:
+          - minor
+          - patch
+
+  # Frontend npm dependencies
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps(frontend)"
+    labels:
+      - dependencies
+    groups:
+      frontend-non-security:
+        update-types:
+          - minor
+          - patch

@@ -1,0 +1,109 @@
+name: Weekly security scan
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Monday 08:00 UTC
+  workflow_dispatch:      # allow manual trigger
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write           # to open an issue if HIGH/CRITICAL CVEs are found
+
+jobs:
+  scan:
+    name: Rescan published images
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Log in to ghcr.io
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan backend image
+        id: scan-backend
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}/backend:latest
+          format: sarif
+          output: trivy-backend.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '0'   # do not fail — we report via issue instead
+
+      - name: Scan frontend image
+        id: scan-frontend
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}/frontend:latest
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload backend SARIF
+        uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+        with:
+          sarif_file: trivy-backend.sarif
+          category: weekly-backend
+
+      - name: Upload frontend SARIF
+        uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: weekly-frontend
+
+      - name: Check for new findings and open issue
+        run: |
+          BACKEND_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('trivy-backend.sarif'))
+          runs = data.get('runs', [])
+          total = sum(len(r.get('results', [])) for r in runs)
+          print(total)
+          ")
+          FRONTEND_COUNT=$(python3 -c "
+          import json, sys
+          data = json.load(open('trivy-frontend.sarif'))
+          runs = data.get('runs', [])
+          total = sum(len(r.get('results', [])) for r in runs)
+          print(total)
+          ")
+          TOTAL=$((BACKEND_COUNT + FRONTEND_COUNT))
+          echo "Backend findings: $BACKEND_COUNT"
+          echo "Frontend findings: $FRONTEND_COUNT"
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "FINDINGS=true" >> "$GITHUB_ENV"
+            echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
+          fi
+
+      - name: Open issue for new CVEs
+        if: env.FINDINGS == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const title = `[Security] Weekly scan found ${process.env.TOTAL} HIGH/CRITICAL CVE(s) in container images`;
+            const body = [
+              '## Weekly Trivy scan results',
+              '',
+              `**${process.env.TOTAL}** HIGH or CRITICAL CVE(s) were found in the \`backend:latest\` or \`frontend:latest\` images.`,
+              '',
+              'Check the [Security tab](../../security/code-scanning) for details.',
+              '',
+              '### Recommended actions',
+              '1. Review the findings in the Security tab.',
+              '2. Update affected base images or dependencies.',
+              '3. Push a fix to `main` — the weekly scan will close this if the next run finds 0 issues.',
+              '',
+              `_Triggered by weekly scan on ${new Date().toISOString().split('T')[0]}_`
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['security']
+            });

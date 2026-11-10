@@ -1,0 +1,37 @@
+name: AI Security Review
+
+on:
+  pull_request:
+    branches: [main]
+
+# Minimum permissions: read code, write PR comments
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  claude-review:
+    name: Claude code review
+    runs-on: ubuntu-24.04
+    # Never run on fork PRs — secrets are not passed to forks but this
+    # guard makes the intent explicit and future-proofs against trigger changes.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Claude security review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review this pull request for security vulnerabilities and correctness issues.
+            Focus on:
+            - New authentication or authorization logic
+            - Input validation and sanitisation gaps
+            - Secrets or credentials in code or config
+            - Dangerous patterns (eval, shell injection, SQL/NoSQL injection, XSS vectors)
+            - Changes to Podman quadlet files, nginx config, or deployment scripts
+            - Dependencies added or upgraded
+            Post concise inline comments only where there is a specific, actionable finding.
+            Skip style and formatting notes — this review is security and correctness only.
