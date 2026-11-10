@@ -13,9 +13,11 @@ jobs:
   claude-review:
     name: Claude code review
     runs-on: ubuntu-24.04
-    # Never run on fork PRs — secrets are not passed to forks but this
-    # guard makes the intent explicit and future-proofs against trigger changes.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Skip fork PRs (no secret access) and bot-authored PRs (Dependabot bumps
+    # don't need an AI security review and ANTHROPIC_API_KEY would be wasted).
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
