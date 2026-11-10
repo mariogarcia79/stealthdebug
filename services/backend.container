@@ -8,7 +8,8 @@ Image=localhost/backend:latest
 Pod=webpage.pod
 ContainerName=backend
 EnvironmentFile=%h/.config/containers/env/backend.env
-Volume=backend-uploads.volume:/app/public/uploads:Z
+# Lowercase z: shared with the nginx container, which serves the files.
+Volume=backend-uploads.volume:/app/public/uploads:z
 Network=app.network
 
 [Service]

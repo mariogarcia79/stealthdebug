@@ -9,6 +9,9 @@ Pod=webpage.pod
 ContainerName=nginx
 Volume=%h/.config/containers/nginx:/etc/nginx:ro,Z
 Volume=%h/.config/containers/certs:/etc/nginx/certs:ro,Z
+# Uploaded images, served directly by nginx (read-only). Lowercase z: the
+# volume is shared with the backend container.
+Volume=backend-uploads.volume:/srv/uploads:ro,z
 PublishPort=443:443
 Network=app.network
 
