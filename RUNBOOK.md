@@ -637,6 +637,22 @@ podman exec nginx ls /srv/uploads/variants | head      # nginx sees the volume
 
 Then open a post in the browser and an existing post in the editor (`/blog/edit/<id>` → Media tab).
 
+### Uploads fail / old images have no resized copies
+
+Symptom: "Upload failed: Server cannot write to the uploads folder" (older builds: "Error processing image"), and in the backend log:
+
+```
+Media: /app/public/uploads is not writable by uid 1000 (EACCES) ...
+```
+
+The backend runs as the non-root `node` user (uid 1000 in the container). Files written by the old root-run backend, or restored with `podman volume import`, are owned by root, so it can read them but not write next to them. `services/backend.container` mounts the volume with `:U`, so Podman fixes the owner on every start. To fix it immediately, or to check the result, run this as `deploy` on the VPS:
+
+```bash
+./scripts/migrate-media.sh      # backup -> fix owner -> restart backend -> report
+```
+
+It backs up the volume to `~/uploads-backups/`, changes only file ownership and permissions (never content), restarts the backend so the startup sync creates the library records and resized copies, and exits non-zero if anything failed. Safe to re-run.
+
 ### Editor
 
 `/blog/new` and `/blog/edit/:id` (admin): Markdown editor with live preview, toolbar, `Ctrl+S` to save, `Ctrl+B/I/E/K` for bold/italic/code/link. Paste or drop an image into the text to upload it at the cursor. Unsaved changes are kept as a draft in that browser and offered again on the next visit.

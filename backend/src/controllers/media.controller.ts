@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import MediaService, { InvalidImageError, MediaInUseError } from "../services/media.service";
+import MediaService, { InvalidImageError, MediaInUseError, uploadDirProblem } from "../services/media.service";
 import { isObjectId, sanitizeText } from "../utils/validation";
 import { sendError } from "../config/errors";
 
@@ -26,7 +26,11 @@ class MediaController {
       return res.status(201).json(media);
     } catch (err) {
       if (err instanceof InvalidImageError) return sendError(res, "UPLOAD_ERROR", err.message);
-      console.error(err);
+      console.error("Upload failed:", err);
+      // sharp reports write failures without an errno code, so check directly
+      if (await uploadDirProblem()) {
+        return sendError(res, "UNKNOWN_ERROR", "Server cannot write to the uploads folder (permissions). See the backend log.");
+      }
       return sendError(res, "UNKNOWN_ERROR", "Error processing image");
     }
   }

@@ -9,7 +9,11 @@ Pod=webpage.pod
 ContainerName=backend
 EnvironmentFile=%h/.config/containers/env/backend.env
 # Lowercase z: shared with the nginx container, which serves the files.
-Volume=backend-uploads.volume:/app/public/uploads:z
+# U: Podman chowns the volume to the container's user (node, uid 1000) on
+# start. The backend runs as non-root, and files written by older root-run
+# images (or restored with `podman volume import`) would otherwise be
+# read-only for it: uploads and resized copies fail with EACCES.
+Volume=backend-uploads.volume:/app/public/uploads:z,U
 Network=app.network
 
 [Service]

@@ -5,7 +5,7 @@ dotenv.config();
 
 import { connectDB, disconnectDB } from './config/db';
 import { createDefaultAdmin } from './config/defaultUsers';
-import MediaService from './services/media.service';
+import MediaService, { uploadDirProblem } from './services/media.service';
 import app from "./app";
 
 const PORT = process.env.PORT || 4000;
@@ -15,11 +15,16 @@ connectDB().then(() => {
 
   // Register existing uploads in the media library and create missing resized
   // copies. Runs in the background; never deletes or changes original files.
-  if (process.env.MEDIA_SYNC_ON_START !== 'false') {
-    MediaService.syncLibrary()
-      .then((s) => console.log(`Media sync: ${s.scanned} files, ${s.created} added, ${s.updated} updated, ${s.failed} failed`))
-      .catch((err) => console.error('Media sync failed:', err));
-  }
+  (async () => {
+    const problem = await uploadDirProblem();
+    if (problem) {
+      console.error(`Media: ${problem}`);
+      return;   // the sync would only fail file by file
+    }
+    if (process.env.MEDIA_SYNC_ON_START === 'false') return;
+    const s = await MediaService.syncLibrary();
+    console.log(`Media sync: ${s.scanned} files, ${s.created} added, ${s.updated} updated, ${s.failed} failed`);
+  })().catch((err) => console.error('Media sync failed:', err));
 
   app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);

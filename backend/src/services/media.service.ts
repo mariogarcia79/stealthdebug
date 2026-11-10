@@ -1,4 +1,4 @@
-import { promises as fs } from "fs";
+import { promises as fs, constants as fsConstants } from "fs";
 import path from "path";
 import sharp from "sharp";
 import type { Metadata, Sharp, OutputInfo } from "sharp";
@@ -22,6 +22,22 @@ import {
 // Same directory the backend has always written to (mounted volume in prod).
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "public/uploads");
 export const VARIANT_DIR = path.join(UPLOAD_DIR, VARIANTS_DIRNAME);
+
+// Error message when the uploads folder (a volume) is not writable by this
+// process, or null when it is. Checked at startup so the cause is obvious in
+// the logs instead of every upload failing with a generic error.
+export async function uploadDirProblem(): Promise<string | null> {
+  try {
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+    await fs.access(UPLOAD_DIR, fsConstants.W_OK);
+    return null;
+  } catch (err: any) {
+    const uid = typeof process.getuid === "function" ? process.getuid() : "?";
+    return `${UPLOAD_DIR} is not writable by uid ${uid} (${err?.code ?? err}). ` +
+      "Uploads and resized copies will fail until the volume is owned by this user " +
+      "(see RUNBOOK section 11, scripts/migrate-media.sh).";
+  }
+}
 
 // Reject decompression bombs before decoding (width * height, all frames).
 const MAX_INPUT_PIXELS = 40_000_000;
