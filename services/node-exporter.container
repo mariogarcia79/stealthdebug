@@ -4,15 +4,14 @@ After=observability-pod.service
 Wants=observability-pod.service
 
 [Container]
-Image=docker.io/prom/node-exporter:latest
+Image=docker.io/prom/node-exporter:v1.8.1
 Pod=observability.pod
 ContainerName=node-exporter
 Volume=/proc:/host/proc:ro,rslave
 Volume=/sys:/host/sys:ro,rslave
-Volume=/:/host:ro,rslave
 Exec=--path.procfs=/host/proc \
      --path.sysfs=/host/sys \
-     --path.rootfs=/host
+     --no-collector.filesystem
 
 [Service]
 Restart=always

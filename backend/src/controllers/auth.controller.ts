@@ -11,9 +11,12 @@ import {
 import AuthService from "../services/auth.service";
 import UserService from "../services/users.service";
 import { ERRORS, sendError } from "../config/errors";
+import { blacklistToken } from "../middleware/tokenBlacklist";
 
-
-const secret = process.env.JWT_SECRET || "default_secret";
+if (!process.env.JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable must be set");
+}
+const secret = process.env.JWT_SECRET;
 
 
 class AuthController {
@@ -86,15 +89,15 @@ class AuthController {
       const cleanPassword = validatePassword(password);
 
       const user = await UserService.getUserByName(cleanName);
-      
-      if (!user) {
-        return sendError(res, 'USER_NOT_FOUND');
-      }
 
-      const isMatch = await bcrypt.compare(cleanPassword, user.hash);
+      // Compare against a dummy hash when user is not found to prevent timing-based
+      // username enumeration. Both paths take the same bcrypt time.
+      const DUMMY_HASH = "$2b$10$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+      const hashToCompare = user ? user.hash : DUMMY_HASH;
+      const isMatch = await bcrypt.compare(cleanPassword, hashToCompare);
 
-      if (!isMatch) {
-        return sendError(res, 'INCORRECT_PASSWORD');
+      if (!user || !isMatch) {
+        return sendError(res, 'INVALID_CREDENTIALS');
       }
       
       const token = jwt.sign(
@@ -153,6 +156,15 @@ class AuthController {
   }
 
   static async logout(req: Request, res: Response): Promise<Response> {
+    const token = req.cookies.jwt;
+    if (token) {
+      try {
+        const decoded = jwt.decode(token) as { exp?: number } | null;
+        if (decoded?.exp) {
+          blacklistToken(token, decoded.exp);
+        }
+      } catch {}
+    }
     res.clearCookie("jwt");
     return res.json({ message: "Logged out successfully" });
   }

@@ -34,6 +34,11 @@ RUN npm ci --omit=dev --prefer-offline --no-audit --no-fund
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
+# Create uploads directory and assign ownership to the built-in non-root node user
+RUN mkdir -p public/uploads && chown -R node:node /app
+
+USER node
+
 EXPOSE 4000
 
 CMD ["node", "dist/index.js"]

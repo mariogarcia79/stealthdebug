@@ -1,9 +1,15 @@
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import UserService from "../services/users.service";
+import CommentModel from "../models/Comment";
 import jwt from "jsonwebtoken";
 import { ERRORS, sendError } from "../config/errors";
+import { isTokenBlacklisted } from "./tokenBlacklist";
 
-const secret = process.env.JWT_SECRET || "default_secret";
+if (!process.env.JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable must be set");
+}
+const secret = process.env.JWT_SECRET;
 
 export const authenticate = async (
   req: Request,
@@ -15,6 +21,10 @@ export const authenticate = async (
 
   if (!token) {
     return sendError(res, 'MISSING_AUTH_TOKEN');
+  }
+
+  if (isTokenBlacklisted(token)) {
+    return sendError(res, 'INVALID_TOKEN');
   }
 
   try {
@@ -34,7 +44,7 @@ export const authenticate = async (
       role: user.role,
       email: user.email,
     };
-    
+
     next();
   } catch (err) {
     return sendError(res, 'INVALID_TOKEN');
@@ -73,4 +83,32 @@ export const validateUserId = (
   }
 
   return sendError(res, 'FORBIDDEN');
+};
+
+// Checks that the requesting user owns the comment identified by :id, or is admin.
+export const validateCommentOwner = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) return sendError(res, 'UNAUTHORIZED');
+  if (req.user.role === "admin") return next();
+
+  const commentId = req.params.id;
+  if (!mongoose.Types.ObjectId.isValid(commentId)) {
+    return sendError(res, 'INVALID_COMMENT_ID');
+  }
+
+  try {
+    const comment = await CommentModel.findById(commentId).select("author").lean();
+    if (!comment) return sendError(res, 'COMMENT_NOT_FOUND');
+
+    if (comment.author.toString() !== req.user._id) {
+      return sendError(res, 'FORBIDDEN');
+    }
+
+    next();
+  } catch {
+    return sendError(res, 'UNKNOWN_ERROR');
+  }
 };

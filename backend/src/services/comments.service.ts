@@ -65,10 +65,14 @@ class CommentService {
 
   static async getAllComments({
     sorted = true,
-    filter
+    filter,
+    limit = 100,
+    skip = 0
   }: {
     sorted?: boolean;
     filter?: Partial<IComment>;
+    limit?: number;
+    skip?: number;
   }): Promise<ICommentDocument[]> {
     const mongoFilter = this.buildFilter(filter);
 
@@ -80,6 +84,8 @@ class CommentService {
 
     return CommentModel.find(mongoFilter)
       .sort(sortOrder)
+      .skip(skip)
+      .limit(limit)
       .populate("author", "name");
   }
 

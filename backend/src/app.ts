@@ -1,12 +1,14 @@
 import express from "express";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import routes from "./routes/index";
 import compression from "compression";
 
 const app = express();
 
-//app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
+app.use(helmet({ contentSecurityPolicy: false })); // CSP is enforced at the nginx layer
 app.use(compression());
 app.use(express.json());
 app.use(cookieParser());

@@ -21,10 +21,16 @@ class CommentController {
       return sendError(res, 'INVALID_POST_ID');
     }
 
+    const page  = Math.max(1, parseInt(req.query.page  as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
+    const skip  = (page - 1) * limit;
+
     try {
       const comments = await CommentService.getAllComments({
         sorted: true,
-        filter: { post: new Types.ObjectId(postId) }
+        filter: { post: new Types.ObjectId(postId) },
+        limit,
+        skip
       });
 
       return res.json(comments);

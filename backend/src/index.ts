@@ -1,9 +1,11 @@
+// dotenv MUST be imported and configured first — subsequent module imports
+// (app → routes → middleware → auth.middleware) check JWT_SECRET at load time.
+import dotenv from "dotenv";
+dotenv.config();
+
 import { connectDB, disconnectDB } from './config/db';
 import { createDefaultAdmin } from './config/defaultUsers';
-import dotenv from "dotenv";
 import app from "./app";
-
-dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 

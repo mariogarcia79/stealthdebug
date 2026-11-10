@@ -58,10 +58,14 @@ class PostService {
 
   static async getAllPosts({
     sorted = true,
-    filter
+    filter,
+    limit = 50,
+    skip = 0
   }: {
     sorted?: boolean;
     filter?: Partial<IPost>;
+    limit?: number;
+    skip?: number;
   }): Promise<IPostDocument[]> {
     const mongoFilter = this.buildFilter(filter);
 
@@ -71,7 +75,7 @@ class PostService {
       createdAt: sorted ? "desc" : "asc"
     };
 
-    return PostModel.find(mongoFilter).sort(sortOrder);
+    return PostModel.find(mongoFilter).sort(sortOrder).skip(skip).limit(limit);
   }
 
   static async getPostById(id: string): Promise<IPostDocument | null> {

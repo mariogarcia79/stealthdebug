@@ -9,7 +9,6 @@ Pod=webpage.pod
 ContainerName=backend
 EnvironmentFile=%h/.config/containers/env/backend.env
 Volume=backend-uploads.volume:/app/public/uploads:Z
-PublishPort=4000:4000
 Network=app.network
 
 [Service]

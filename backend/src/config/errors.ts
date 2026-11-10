@@ -16,6 +16,7 @@ export const ERRORS = {
   UPLOAD_ERROR:         { message: 'Upload error',                  status: 400 },
   INVALID_INPUT:        { message: 'Invalid input',                 status: 400 },
   INCORRECT_PASSWORD:   { message: 'Incorrect password',            status: 401 },
+  INVALID_CREDENTIALS:  { message: 'Invalid username or password',  status: 401 },
   USER_ALREADY_EXISTS:  { message: 'User already exists',           status: 409 },
   UNKNOWN_ERROR:        { message: 'Unknown error',                 status: 500 },
   BAD_REQUEST:          { message: 'Bad request',                   status: 400 },

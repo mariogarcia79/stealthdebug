@@ -47,18 +47,22 @@ class UserService {
   
   static async getAllUsers({
     sorted = true,
-    filter
+    filter,
+    limit = 50,
+    skip = 0
   }: {
     sorted?: boolean;
     filter?: Partial<IUser>;
+    limit?: number;
+    skip?: number;
   }): Promise<IUserDocument[]> {
     const mongoFilter = this.buildFilter(filter);
-    
+
     const sortOrder: { [key: string]: SortOrder } = {
       name: sorted ? "asc" : "desc"
     };
-    
-    return UserModel.find(mongoFilter).sort(sortOrder);
+
+    return UserModel.find(mongoFilter).sort(sortOrder).skip(skip).limit(limit);
   }
   
   static async getUserById(id: string): Promise<IUserDocument | null> {
@@ -84,8 +88,9 @@ class UserService {
   
   static async patchUserById(id: string, partial: Partial<IUser>): Promise<IUserDocument | null> {
     if (!isObjectId(id)) return null;
-    
-    const allowedFields: (keyof IUser)[] = ["name", "email", "hash"];
+
+    // "hash" is intentionally excluded — password changes go through updateUserPassword only
+    const allowedFields: (keyof IUser)[] = ["name", "email"];
     const updateData: Partial<Record<keyof IUser, any>> = {};
     
     for (const key of allowedFields) {

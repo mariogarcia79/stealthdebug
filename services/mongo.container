@@ -9,7 +9,6 @@ ContainerName=mongo
 EnvironmentFile=%h/.config/containers/env/mongo.env
 Volume=mongo-data.volume:/data/db
 Volume=%h/.config/containers/mongo/init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
-PublishPort=27017:27017
 Network=app.network
 Exec=mongod --wiredTigerCacheSizeGB 0.25
 

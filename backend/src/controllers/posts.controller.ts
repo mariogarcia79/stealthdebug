@@ -20,8 +20,12 @@ import {
 class PostController {
 
   static async getAllPosts(req: Request, res: Response): Promise<Response> {
+    const page  = Math.max(1, parseInt(req.query.page  as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const skip  = (page - 1) * limit;
+
     try {
-      const posts = await PostService.getAllPosts({ sorted: true });
+      const posts = await PostService.getAllPosts({ sorted: true, limit, skip });
       return res.json(posts);
     } catch (err) {
       console.error(err);

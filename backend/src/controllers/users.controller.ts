@@ -17,27 +17,31 @@ class UserController {
   static async getAllUsers(req: Request, res: Response): Promise<Response> {
     const queryName = req.query.name as string | undefined;
     const queryRole = req.query.role as string | undefined;
-    
+
+    const page  = Math.max(1, parseInt(req.query.page  as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const skip  = (page - 1) * limit;
+
     const filter: FilterQuery<IUser> = { };
-    
+
     try {
       if (queryName) {
         const cleanName = validateName(queryName);
-        filter.name = { 
+        filter.name = {
           $regex: new RegExp(escapeRegex(cleanName), 'i')
         };
       }
-      
+
       if (queryRole && ![UserRole.ADMIN, UserRole.USER]
           .includes(queryRole as UserRole)) {
         return sendError(res, 'INVALID_INPUT');
       }
-      
+
       if (queryRole) {
         filter.role = queryRole as UserRole;
       }
-      
-      const users = await UserService.getAllUsers({ sorted: true, filter });
+
+      const users = await UserService.getAllUsers({ sorted: true, filter, limit, skip });
       return res.json(users);
     } catch (error: unknown) {
       console.error(error instanceof Error ? error : "Unknown error");
