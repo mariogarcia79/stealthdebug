@@ -16,6 +16,7 @@ This document covers every aspect of operating the CI/CD pipeline for stealthdeb
 8. [Alerts and notifications](#8-alerts-and-notifications)
 9. [AI review — cost control and false positives](#9-ai-review--cost-control-and-false-positives)
 10. [MongoDB: backup and restore](#10-mongodb-backup-and-restore)
+11. [Posts, images and the media library](#11-posts-images-and-the-media-library)
 
 ---
 
@@ -591,3 +592,61 @@ podman volume ls
 ```
 
 It will appear as either `mongo-data` or `systemd-mongo-data` depending on your Podman version. Never run `podman volume rm` on it.
+
+---
+
+## 11. Posts, images and the media library
+
+### How images are stored and served
+
+| What | Where |
+|---|---|
+| Original image (unchanged URL, used by old posts) | `backend-uploads` volume → `/api/uploads/<name>.webp` |
+| Resized copies (480 / 960 / 1600 px wide WebP) | same volume, `variants/` → `/api/uploads/variants/<name>-<w>w.webp` |
+| Library record (size, dimensions, alt text) | MongoDB collection `media` |
+
+- **nginx serves `/api/uploads/` directly** from the volume (mounted read-only into the nginx container) with `Cache-Control: public, max-age=31536000, immutable`. File names are unique per upload and never rewritten, so browsers and Cloudflare can keep them for a year. Only `GET` is allowed there.
+- **Management is `/api/media`** (admin only): list, upload, edit alt text, delete. Delete is refused (HTTP 409) while any post, published or not, still references the image.
+- **Posts are plain Markdown.** Images are normal `![alt](/api/uploads/<name>.webp)` links. `GET /api/posts/:id` adds an `images` map with dimensions and resized copies, and the frontend turns each image into a lazy-loaded `<img srcset>`. An image without a library record still renders, just without `srcset`.
+- New uploads are converted to WebP and stored at most 2400 px wide; existing originals are never modified.
+
+### Startup sync
+
+On every start the backend scans the uploads folder and, for any original without them, creates the missing resized copies and `media` record. Look for this line in the backend log:
+
+```
+Media sync: <files> files, <n> added, <n> updated, <n> failed
+```
+
+It never deletes or modifies an original, and never touches posts, comments or users. Set `MEDIA_SYNC_ON_START=false` in `backend.env` to disable it. A file it cannot read is logged as `Media sync: skipped <name>` and keeps working as before (no `srcset`).
+
+### After deploying a change to posts or media
+
+```bash
+# Public checks (anywhere): old image URL still works and is cached long-term
+curl -sI https://stealthdebug.org/api/uploads/<an existing file>.webp | grep -iE '^(HTTP|content-type|cache-control|cf-cache-status)'
+# expect: 200, image/webp, max-age=31536000, immutable (cf-cache-status HIT after the first request)
+```
+
+As `deploy` on the VPS (see 3i):
+
+```bash
+podman logs backend 2>&1 | grep 'Media sync'
+podman exec nginx ls /srv/uploads/variants | head      # nginx sees the volume
+```
+
+Then open a post in the browser and an existing post in the editor (`/blog/edit/<id>` → Media tab).
+
+### Editor
+
+`/blog/new` and `/blog/edit/:id` (admin): Markdown editor with live preview, toolbar, `Ctrl+S` to save, `Ctrl+B/I/E/K` for bold/italic/code/link. Paste or drop an image into the text to upload it at the cursor. Unsaved changes are kept as a draft in that browser and offered again on the next visit.
+
+### Backups
+
+`scripts/backup-mongo.sh` covers the database (including `media`), **not** the image files. Back up the volume separately:
+
+```bash
+podman volume export systemd-backend-uploads > ~/uploads-$(date +%Y%m%d).tar   # name: see `podman volume ls`
+```
+
+The resized copies can always be regenerated (delete `variants/` and restart the backend); the originals cannot.
