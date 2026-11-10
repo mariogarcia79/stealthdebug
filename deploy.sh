@@ -92,14 +92,10 @@ mkdir -p /home/deploy/.config/containers/nginx
 mkdir -p /home/deploy/.config/containers/prometheus
 mkdir -p /home/deploy/.config/containers/env
 mkdir -p /home/deploy/.config/containers/systemd
-mkdir -p /home/deploy/.config/systemd/user
-
-# Remove dangling symlink before (re)creating it
-rm -f /home/deploy/.config/systemd/user
-ln -s /home/deploy/.config/containers/systemd /home/deploy/.config/systemd/user
+# Quadlet reads ~/.config/containers/systemd directly; ~/.config/systemd/user
+# is left alone (it may hold other user units and timers).
 
 chmod -R 700 /home/deploy/.config/containers
-chmod -R 700 /home/deploy/.config/systemd/user
 echo "Created directory structure."
 
 # Copy config files
