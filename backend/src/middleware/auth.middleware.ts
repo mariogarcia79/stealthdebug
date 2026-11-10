@@ -41,7 +41,7 @@ export const authenticate = async (
 
     req.user = {
       _id: user.id.toString(),
-      role: user.role,
+      role: user.role as "admin" | "user",
       email: user.email,
     };
 
