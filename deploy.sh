@@ -121,9 +121,18 @@ cp -r ./mongo/* /home/deploy/.config/containers/mongo/
 chmod -R 700 /home/deploy/.config/containers/mongo
 echo "Copied mongo configuration."
 
-cp -r /home/deploy/.prometheus/* /home/deploy/.config/containers/prometheus/
+# Prometheus config with the Grafana Cloud token lives in ~/.prometheus (not
+# in git). Monitoring must not block a site deploy: without it, use the repo
+# config minus remote_write (Prometheus then only keeps data locally).
+if [ -f /home/deploy/.prometheus/prometheus.yml ]; then
+  cp -r /home/deploy/.prometheus/* /home/deploy/.config/containers/prometheus/
+  echo "Copied prometheus configuration."
+else
+  awk '/^remote_write:/ {exit} {print}' ./prometheus/prometheus.yml \
+    > /home/deploy/.config/containers/prometheus/prometheus.yml
+  echo "WARNING: ~/.prometheus/prometheus.yml not found; using the repo config without remote_write (no Grafana Cloud)."
+fi
 chmod -R 744 /home/deploy/.config/containers/prometheus
-echo "Copied prometheus configuration."
 
 cp -r /home/deploy/.env/* /home/deploy/.config/containers/env/
 chmod -R 700 /home/deploy/.config/containers/env/

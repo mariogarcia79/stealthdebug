@@ -64,7 +64,7 @@ Only one deploy runs at a time: the `deploy` job uses a `production-deploy` conc
 | Git (the VPS clone) | quadlet files (`services/`), nginx config, mongo init script |
 | ghcr.io | backend and frontend images built by CI |
 | Docker Hub / quay.io | third-party images (mongo, nginx, prometheus, exporters) |
-| VPS only, never in git | `~/.certs`, `~/.env`, `~/.prometheus` (note: the repo's `prometheus/` folder is **not** used) |
+| VPS only, never in git | `~/.certs`, `~/.env`, `~/.prometheus` (optional: without `~/.prometheus/prometheus.yml`, deploy uses the repo's `prometheus/prometheus.yml` minus `remote_write`, so metrics stay local and nothing is sent to Grafana Cloud) |
 | Cloudflare | current proxy IP ranges for nginx's real-IP config; if unreachable, the previous list is kept |
 
 ---
