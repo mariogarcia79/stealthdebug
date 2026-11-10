@@ -1,6 +1,9 @@
 dist
 start-dev.sh
 
+# Audit
+SECURITY_AUDIT.md
+
 # Logs
 logs
 *.log
