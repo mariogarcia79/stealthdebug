@@ -30,7 +30,7 @@ jobs:
         working-directory: backend
 
       - name: Type-check backend
-        run: npx tsc --noEmit
+        run: npx --no-install tsc --noEmit
         working-directory: backend
 
       - name: Set up Node (frontend)
@@ -45,7 +45,7 @@ jobs:
         working-directory: frontend
 
       - name: Type-check frontend
-        run: npx tsc --noEmit
+        run: npx --no-install tsc --noEmit
         working-directory: frontend
 
   test:

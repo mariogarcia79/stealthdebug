@@ -334,10 +334,14 @@ The VPS was not touched — no rollback needed. Fix the issue, push a new commit
 
 A TypeScript compilation error was introduced. Read the error in the job log, fix it, push again. The error message includes the file and line number.
 
+If the log says **"This is not the tsc command you are looking for"**, `typescript` is missing from that package's `devDependencies` (plain `npx tsc` then downloads an unrelated npm package called `tsc`). CI uses `npx --no-install tsc` so this fails with a clear "command not found" instead; fix it with `npm install -D typescript` in the affected package.
+
 ### `audit-deps` fails
 
 A new CVE with CVSS ≥ 7 was found in a dependency. Options:
 1. Update the dependency: `npm update <package>` or bump the version in package.json
+   - `npm audit fix` applies semver-compatible updates only. Anything it reports as "breaking change" (e.g. `sharp` 0.34 → 0.35, where the minor bump is breaking in 0.x) must be bumped explicitly with `npm install <pkg>@<version>` after checking the changelog.
+   - The frontend is audited **without** `--omit=dev` because Vite/Rollup/PostCSS run at build time and their output ships to users.
 2. If no fix is available yet, check if the vulnerable code path is actually reachable. If not, you can temporarily add an `npm audit` override in `package.json` (`"overrides"` field) with a comment explaining why. Remove the override as soon as a fix is released.
 
 ### `trivy-fs` fails
