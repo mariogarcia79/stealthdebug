@@ -22,10 +22,16 @@ updates:
       prefix: "deps(backend)"
     labels:
       - dependencies
-    # Group all non-security updates into one PR to reduce noise
+    # At most 1 non-security PR open at a time. Security updates always get
+    # their own PR regardless of this limit.
+    open-pull-requests-limit: 1
+    # Group all version types into one PR. Major bumps are included so they
+    # don't create a separate flood; TypeScript strict mode + CI will catch
+    # any breaking changes before merge.
     groups:
-      backend-non-security:
+      backend-all:
         update-types:
+          - major
           - minor
           - patch
 
@@ -39,8 +45,10 @@ updates:
       prefix: "deps(frontend)"
     labels:
       - dependencies
+    open-pull-requests-limit: 1
     groups:
-      frontend-non-security:
+      frontend-all:
         update-types:
+          - major
           - minor
           - patch
