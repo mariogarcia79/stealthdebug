@@ -102,7 +102,7 @@ jobs:
         with:
           scan-type: fs
           scan-ref: .
-          trivy-ignore-unfixed: true
+          ignore-unfixed: true
           format: sarif
           output: trivy-fs.sarif
           severity: HIGH,CRITICAL
@@ -186,7 +186,7 @@ jobs:
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-          trivy-ignore-unfixed: true
+          ignore-unfixed: true
           format: sarif
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
@@ -197,7 +197,7 @@ jobs:
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
-          trivy-ignore-unfixed: true
+          ignore-unfixed: true
           format: sarif
           output: trivy-frontend.sarif
           severity: HIGH,CRITICAL
