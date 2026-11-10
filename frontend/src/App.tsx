@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from "./components/page/Navbar";
 import Home from "./components/page/Home";
@@ -5,7 +6,9 @@ import SignUp from './components/auth/SignUp';
 import LogIn from './components/auth/LogIn';
 import BlogList from './components/blog/BlogList';
 import BlogPost from './components/blog/BlogPost';
-import BlogEditor from './components/blog/BlogEditor';
+// The editor (CodeMirror) is only for the admin: load it on demand so it isn't
+// part of the bundle every reader downloads.
+const BlogEditor = lazy(() => import('./components/blog/BlogEditor'));
 import UserDashboard from './components/user/UserDashboard';
 import UserList from './components/user/UserList';
 import { ProtectedRoute } from './components/page/ProtectedRoute';
@@ -31,7 +34,9 @@ function App() {
             path="/blog/new"
             element={
               <ProtectedRoute requiredRole="admin">
-                <BlogEditor />
+                <Suspense fallback={<p className="sidebar-empty">Loading editor…</p>}>
+                  <BlogEditor />
+                </Suspense>
               </ProtectedRoute>
             }
           />
@@ -40,7 +45,9 @@ function App() {
             path="/blog/edit/:id"
             element={
               <ProtectedRoute requiredRole="admin">
-                <BlogEditor />
+                <Suspense fallback={<p className="sidebar-empty">Loading editor…</p>}>
+                  <BlogEditor />
+                </Suspense>
               </ProtectedRoute>
             }
           />

@@ -70,7 +70,7 @@ function BlogPost() {
           <div className="post-summary">{post.summary}</div>
 
           <div className="post-body">
-            <MarkdownRenderer content={post.content}/>
+            <MarkdownRenderer content={post.content} images={post.images}/>
           </div>
         </div>
         

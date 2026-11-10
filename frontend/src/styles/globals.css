@@ -786,64 +786,9 @@ html {
 
 
 
-/* --- BlogEditor Two-Column Layout --- */
-.editor-wrapper {
-  width: 100%;
-  max-width: 1200px;
-  display: flex;
-  gap: 1.5rem;
-  margin-top: 2rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  margin-bottom: 5rem;
-  justify-content: center;
-}
-
-.editor-main {
-  width: 70%;
-  max-width: 900px;
-}
-
-.editor-sidebar {
-  width: 30%;
-  min-width: 200px;
-  background: var(--color-dark-1);
-  border: 1px solid var(--color-subtle-general);
-  margin-top: 51px;
-  padding: 1rem;
-  height: flex;
-  font-size: 1rem;
-}
-
-.editor-sidebar h3 {
-  color: var(--color-accent-general);
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-}
-
-.file-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.file-list code {
-  word-break: break-all;
-}
-
 .sidebar-empty {
   color: var(--color-text-1);
   font-style: italic;
-}
-
-@media (max-width: 800px) {
-  .editor-main {
-    width: 100%;
-  }
-  .editor-sidebar {
-    display: none;
-  }
 }
 
 .char-counter {
@@ -967,4 +912,268 @@ html {
   .user-actions {
     justify-content: flex-start;
   }
+}
+
+
+/* ============================================
+   POST IMAGES (responsive, see MarkdownRenderer)
+============================================ */
+.prose img {
+  height: auto;              /* width/height attributes only set the aspect ratio */
+}
+
+.prose-image-link {
+  display: block;
+  cursor: zoom-in;
+}
+
+/* ============================================
+   POST EDITOR
+============================================ */
+.post-editor {
+  width: 100%;
+  max-width: 1500px;
+  padding: 1rem 1rem 5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.post-editor .input.wide,
+.post-editor .textarea {
+  max-width: none;
+}
+
+.post-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.post-editor-header .title {
+  margin-right: auto;
+}
+
+.editor-status {
+  color: var(--color-text-1);
+  font-size: 0.9rem;
+}
+
+.editor-status.dirty {
+  color: var(--color-accent-general);
+}
+
+.draft-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-accent-note);
+  background: var(--color-dark-1);
+}
+
+.post-editor-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.post-editor-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar,
+.editor-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  min-height: 2.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.editor-toolbar button,
+.editor-tabs button {
+  background: var(--color-dark-1);
+  color: var(--color-text-0);
+  border: 1px solid var(--color-subtle-general);
+  padding: 0.25rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.editor-toolbar button:hover,
+.editor-tabs button:hover,
+.editor-tabs button.active {
+  border-color: var(--color-accent-general);
+  color: var(--color-accent-general);
+}
+
+.char-counter.inline {
+  margin: 0 0 0 auto;
+  font-size: 0.85rem;
+}
+
+/* Editor and side panel share a height and scroll independently */
+.post-editor-cm,
+.editor-side {
+  height: 70vh;
+  min-height: 420px;
+}
+
+.post-editor-cm .cm-editor {
+  height: 100%;
+}
+
+.editor-side {
+  overflow-y: auto;
+  border: 1px solid var(--color-subtle-general);
+  background: var(--color-dark-0);
+  padding: 1rem;
+}
+
+.post-content.preview {
+  max-width: none;
+}
+
+@media (max-width: 900px) {
+  .post-editor-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .post-editor-cm,
+  .editor-side {
+    height: 60vh;
+    min-height: 320px;
+  }
+}
+
+/* ============================================
+   MEDIA LIBRARY
+============================================ */
+.media-library {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dropzone.compact {
+  padding: 1rem;
+  margin-bottom: 0;
+  max-width: none;
+}
+
+.media-filters {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.media-filters .input {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.media-checkbox {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--color-text-1);
+  font-size: 0.9rem;
+}
+
+.media-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.media-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--color-dark-1);
+  border: 1px solid var(--color-subtle-general);
+  min-width: 0;
+}
+
+.media-thumb {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: var(--color-dark-0);
+  cursor: copy;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+
+.media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+
+.media-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-dims {
+  color: var(--color-text-1);
+}
+
+.media-badge {
+  align-self: flex-start;
+  padding: 0 0.35rem;
+  border: 1px solid;
+  font-size: 0.75rem;
+}
+
+.media-badge.used {
+  color: var(--color-accent-general);
+}
+
+.media-badge.unused {
+  color: var(--color-text-1);
+}
+
+.media-alt.input {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.media-status {
+  font-size: 0.75rem;
+  color: var(--color-text-1);
+  word-break: break-all;
+}
+
+.media-actions .button.compact {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
 }
