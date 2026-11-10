@@ -35,8 +35,14 @@ WORKDIR /app
 COPY package*.json ./
 COPY package-lock.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev --prefer-offline --no-audit --no-fund
+# Install only production dependencies, then remove npm/npx/corepack: the
+# app runs with plain `node` and never needs them, and the npm bundled in the
+# Node image carries its own dependency CVEs (e.g. undici, brace-expansion).
+RUN npm ci --omit=dev --prefer-offline --no-audit --no-fund \
+ && npm cache clean --force \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /root/.npm
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
