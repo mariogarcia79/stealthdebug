@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 
 import PostService from "../services/posts.service";
+import MediaService from "../services/media.service";
 import { IPost } from "../types/post";
 
 import { 
@@ -44,7 +45,16 @@ class PostController {
       if (!post) {
         return sendError(res, 'POST_NOT_FOUND');
       }
-      return res.json(post);
+
+      // Size data for referenced uploads so the client can render responsive
+      // <img srcset>. A failure here must never break showing the post.
+      let images = {};
+      try {
+        images = await MediaService.imagesForContent(post.content);
+      } catch (err) {
+        console.error("imagesForContent failed:", err);
+      }
+      return res.json({ ...post.toJSON(), images });
 
     } catch (err) {
       console.error(err);

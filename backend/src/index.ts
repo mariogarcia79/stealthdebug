@@ -5,12 +5,21 @@ dotenv.config();
 
 import { connectDB, disconnectDB } from './config/db';
 import { createDefaultAdmin } from './config/defaultUsers';
+import MediaService from './services/media.service';
 import app from "./app";
 
 const PORT = process.env.PORT || 4000;
 
 connectDB().then(() => {
   (async () => { await createDefaultAdmin(); })();
+
+  // Register existing uploads in the media library and create missing resized
+  // copies. Runs in the background; never deletes or changes original files.
+  if (process.env.MEDIA_SYNC_ON_START !== 'false') {
+    MediaService.syncLibrary()
+      .then((s) => console.log(`Media sync: ${s.scanned} files, ${s.created} added, ${s.updated} updated, ${s.failed} failed`))
+      .catch((err) => console.error('Media sync failed:', err));
+  }
 
   app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
