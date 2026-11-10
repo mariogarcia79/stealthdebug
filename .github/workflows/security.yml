@@ -24,7 +24,7 @@ jobs:
 
       - name: Scan backend image
         id: scan-backend
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.29.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/backend:latest
@@ -35,7 +35,7 @@ jobs:
 
       - name: Scan frontend image
         id: scan-frontend
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.29.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/frontend:latest
