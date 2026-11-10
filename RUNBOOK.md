@@ -41,7 +41,7 @@ Developer pushes branch
         ├─► typecheck + test + audit-deps + trivy-fs  (same as above)
         ├─► build-images  ──► push to ghcr.io (SHA tag + latest tag)
         ├─► trivy-images  ──► scan published images, upload SARIF
-        └─► deploy        ──► SSH to VPS → git pull + podman pull + systemctl restart
+        └─► deploy        ──► SSH to VPS → git checkout <sha> + podman pull + systemctl restart
                                                 │
                               (rollback if any step fails)
 ```
@@ -50,7 +50,21 @@ Developer pushes branch
 - SHA tag: `ghcr.io/.../backend:abc1234` — immutable, one per commit
 - `latest` tag: always points to the most recent successful main push
 
-**VPS deployment:** GitHub Actions SSHes into the VPS as the `deploy` user, sets `BACKEND_IMAGE` and `FRONTEND_IMAGE` to the SHA-tagged images, and runs `deploy.sh`. The script pulls the pre-built images and retags them as `localhost/backend:latest` and `localhost/frontend:latest`, which is what the Podman quadlet files reference. No compilation happens on the VPS.
+**VPS deployment:** GitHub Actions SSHes into the VPS as the `deploy` user, sets `BACKEND_IMAGE` and `FRONTEND_IMAGE` to the SHA-tagged images and `DEPLOY_SHA` to the commit, and runs `deploy.sh` inside the existing clone on the VPS. The script checks out exactly that commit (so config files and images always come from the same commit), pulls the pre-built images and retags them as `localhost/backend:latest` and `localhost/frontend:latest`, which is what the Podman quadlet files reference. No compilation happens on the VPS.
+
+Only one deploy runs at a time: the `deploy` job uses a `production-deploy` concurrency group (a newer push waits, it does not cancel a running deploy), and `deploy.sh` also holds a lock (`~/.deploy.lock`) so a manual run cannot overlap with CI.
+
+> **The VPS clone is on a detached HEAD** after the first deploy. Don't run `git pull` there; to look at the latest code use `git fetch origin main && git checkout --detach origin/main`.
+
+**What comes from where on each deploy:**
+
+| Source | What |
+|---|---|
+| Git (the VPS clone) | quadlet files (`services/`), nginx config, mongo init script |
+| ghcr.io | backend and frontend images built by CI |
+| Docker Hub / quay.io | third-party images (mongo, nginx, prometheus, exporters) |
+| VPS only, never in git | `~/.certs`, `~/.env`, `~/.prometheus` (note: the repo's `prometheus/` folder is **not** used) |
+| Cloudflare | current proxy IP ranges for nginx's real-IP config; if unreachable, the previous list is kept |
 
 ---
 
@@ -124,25 +138,41 @@ This creates two files:
 
 ### 3b. Add the public key to the VPS
 
-SSH into the VPS as root and run:
+Log in as `admin` (root SSH login is disabled, see 3i) and run:
 
 ```bash
-mkdir -p /home/deploy/.ssh
-chmod 700 /home/deploy/.ssh
-echo "PASTE_CONTENTS_OF_github_actions_deploy.pub" >> /home/deploy/.ssh/authorized_keys
-chmod 600 /home/deploy/.ssh/authorized_keys
-chown -R deploy:deploy /home/deploy/.ssh
+sudo mkdir -p /home/deploy/.ssh
+sudo chmod 700 /home/deploy/.ssh
+echo "restrict PASTE_CONTENTS_OF_github_actions_deploy.pub" | sudo tee -a /home/deploy/.ssh/authorized_keys
+sudo chmod 600 /home/deploy/.ssh/authorized_keys
+sudo chown -R deploy:deploy /home/deploy/.ssh
 ```
+
+The `restrict` prefix disables port/agent forwarding and terminal allocation for this key. `authorized_keys` for `deploy` must contain **only** this CI key.
+
+Once the private key is stored in the `VPS_SSH_KEY` secret (3e), delete it from your laptop (`rm ~/.ssh/github_actions_deploy`). To rotate it later: generate a new pair, add the new public key alongside the old one, update the secret, run the workflow manually, then remove the old line.
 
 ### 3c. Get the VPS host key (prevents MITM on the SSH step)
 
-Run on the VPS:
-```bash
-ssh-keyscan -t ed25519 localhost
-```
+The secret is a `known_hosts` line whose **first word must be exactly the `VPS_SSH_HOST` value** CI connects to. (Do not use `ssh-keyscan localhost`: that line starts with `localhost` and every deploy would fail with "Host key verification failed".)
 
-The output looks like: `localhost ssh-ed25519 AAAA...`
-Copy the entire line — it goes into GitHub secret `VPS_SSH_HOST_KEY`.
+1. On the VPS, print the real host key:
+   ```bash
+   cat /etc/ssh/ssh_host_ed25519_key.pub
+   # ssh-ed25519 AAAAC3Nza... root@yourvps
+   ```
+2. Build the line: `VPS_SSH_HOST` value, space, key type and key (drop the trailing comment):
+   ```
+   203.0.113.10 ssh-ed25519 AAAAC3Nza...
+   ```
+   If SSH listens on a non-default port: `[203.0.113.10]:2222 ssh-ed25519 AAAA...`
+3. Store it in the GitHub secret `VPS_SSH_HOST_KEY`.
+
+Optional cross-check from your laptop — the two fingerprints must match:
+```bash
+ssh-keyscan -t ed25519 203.0.113.10 | ssh-keygen -lf -   # laptop
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub        # VPS
+```
 
 ### 3d. Enable linger for the deploy user (if not already set)
 
@@ -158,32 +188,27 @@ Go to: **GitHub → Repository → Settings → Secrets and variables → Action
 
 | Secret name | Value |
 |-------------|-------|
-| `VPS_SSH_HOST` | VPS IP address or hostname |
+| `VPS_SSH_HOST` | VPS IP address, or a **DNS-only** (grey cloud) hostname. Not a Cloudflare-proxied domain: Cloudflare does not forward SSH |
 | `VPS_SSH_USER` | `deploy` |
 | `VPS_SSH_KEY` | Contents of `~/.ssh/github_actions_deploy` (the private key, including the `-----BEGIN` and `-----END` lines) |
-| `VPS_SSH_HOST_KEY` | The full line from `ssh-keyscan` in step 3c |
+| `VPS_SSH_HOST_KEY` | The `known_hosts` line built in step 3c |
 | `VPS_APP_DIR` | Absolute path to the repo on the VPS, e.g. `/home/deploy/stealthdebug` |
-| `ANTHROPIC_API_KEY` | Your Claude API key (see section 3f) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude subscription token from `claude setup-token` (see section 3f) |
 
 `GHCR_TOKEN` is **not needed** because the repository is public — ghcr.io images are publicly readable without authentication.
 
-### 3f. Claude API key vs subscription token
+### 3f. Claude authentication for the AI review
 
-The `ai-review.yml` workflow supports two authentication modes for `claude-code-action`:
+`ai-review.yml` authenticates with a **Claude Pro/Max subscription token**, so reviews count against the subscription's usage limits instead of being billed per token.
 
-**Option A — API key (recommended for auditability):**
-- Create a key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
-- Set a monthly spend limit in the console (e.g. $5/month) to cap costs
-- Store it in the `ANTHROPIC_API_KEY` secret
-- Billed per token: typically $0.10–$0.50 per PR review depending on diff size
+1. On your laptop: `claude setup-token` — log in in the browser, copy the `sk-ant-oat01-…` token it prints.
+2. Store it in the `CLAUDE_CODE_OAUTH_TOKEN` repository secret.
 
-**Option B — Subscription token:**
-- Replace `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}` in `ai-review.yml` with `claude_access_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}`
-- Get the token by running `claude setup-token` locally and copying the output
-- Counts against your Claude Pro/Max subscription minutes
-- No separate billing, but no granular spend control
-
-**Recommendation for a personal project:** subscription token is simpler. For a team or if you want isolated billing, use the API key.
+Notes:
+- The token acts as your account and is valid for about a year. When it expires the review job fails with an auth error: run `claude setup-token` again and update the secret.
+- Reviews share your subscription's usage limits. If they are exhausted the review step fails; this never blocks a merge (it is not a required check).
+- To switch to pay-per-token billing instead, replace `claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}` with `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`, create a key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) and set a monthly spend limit there.
+- The action is pinned to the commit behind its old `beta` tag. Migrating to v1 (`direct_prompt` → `prompt`, tool permissions via `claude_args`) is a pending TODO; do it in its own PR.
 
 ### 3g. Configure branch protection
 
@@ -204,6 +229,26 @@ Optionally add a required reviewer — this means every deploy to the VPS needs 
 
 The `deploy` job in `ci.yml` already references `environment: production`.
 
+### 3i. VPS SSH access model
+
+| Account | How it logs in |
+|---|---|
+| `admin` | SSH key **and** password **and** OTP (`AuthenticationMethods publickey,keyboard-interactive:pam`) |
+| `deploy` | CI key only (`Match User deploy` → `AuthenticationMethods publickey`), no forwarding, no TTY |
+| `root` | no SSH login |
+
+The app runs as rootless Podman under `deploy`'s systemd user manager. **Every `systemctl --user`, `journalctl --user` and `podman` command in this runbook is run as `deploy`**, from an `admin` session:
+
+```bash
+ssh admin@YOUR_VPS
+sudo machinectl shell deploy@        # one-time: sudo apt install systemd-container
+cd ~/stealthdebug                    # the VPS_APP_DIR clone
+systemctl --user status webpage-pod.service
+exit                                 # back to admin
+```
+
+Use `machinectl shell`, not `sudo -iu deploy`: the latter has no user session, so `systemctl --user` fails with "Failed to connect to bus".
+
 ---
 
 ## 4. First deployment procedure
@@ -212,7 +257,7 @@ The `deploy` job in `ci.yml` already references `environment: production`.
 
 ### Step 1 — Back up MongoDB
 
-SSH into the VPS as the deploy user and run:
+As `deploy` on the VPS (see 3i), run:
 
 ```bash
 cd ~/stealthdebug         # or wherever the repo is cloned
@@ -256,7 +301,7 @@ Watch the deploy in: **GitHub → Repository → Actions → CI → most recent 
 
 ### Step 5 — Confirm data is intact after deploy
 
-After the deploy job succeeds, SSH into the VPS and verify:
+After the deploy job succeeds, as `deploy` on the VPS (see 3i) verify:
 
 ```bash
 systemctl --user status webpage-pod.service --no-pager
@@ -295,20 +340,39 @@ GitHub → Actions → Weekly security scan → Run workflow.
 
 ### Automatic rollback (deploy script failure)
 
-If `deploy.sh` fails at any point, the `rollback()` function restores the previous `~/.config/containers/` directory and restarts the services. This happens automatically — no manual action needed.
+If `deploy.sh` fails at any point, the `rollback()` function restores everything it changed and restarts the services:
+- the previous `~/.config/containers/` directory (config, quadlets, certs, env files),
+- the previous git commit of the VPS clone,
+- the previous `localhost/backend:latest` and `localhost/frontend:latest` images (by image ID recorded before the pull).
+
+This happens automatically — no manual action needed. Volumes (database, uploads, metrics) are never touched.
 
 ### Manual rollback to a previous image
 
-Find the commit SHA you want to roll back to:
+Find the **full** commit SHA you want to roll back to (images are tagged with the full 40-character SHA):
 
 ```bash
-git log --oneline
+git log --format='%H %s' | head
 ```
 
-Then on the VPS:
+**Preferred: re-run the deploy for that commit** (as `deploy` on the VPS, see 3i). This rolls back config, quadlets and images together, with the same automatic rollback if it fails:
 
 ```bash
-PREV_SHA="abc1234"   # the commit SHA to roll back to
+cd ~/stealthdebug
+PREV_SHA="<full sha>"
+REPO="ghcr.io/mariogarcia79/stealthdebug"
+DEPLOY_SHA="$PREV_SHA" \
+BACKEND_IMAGE="${REPO}/backend:${PREV_SHA}" \
+FRONTEND_IMAGE="${REPO}/frontend:${PREV_SHA}" \
+  ./deploy.sh
+```
+
+Note that this runs the `deploy.sh` currently checked out; it then checks out the old commit's files.
+
+**Quick alternative: swap only the app images** (config stays as-is):
+
+```bash
+PREV_SHA="<full sha>"   # the commit SHA to roll back to
 REPO="ghcr.io/mariogarcia79/stealthdebug"
 
 podman pull "${REPO}/backend:${PREV_SHA}"
@@ -320,7 +384,9 @@ podman tag "${REPO}/frontend:${PREV_SHA}" localhost/frontend:latest
 systemctl --user restart webpage-pod.service
 ```
 
-Images are retained in ghcr.io indefinitely unless you explicitly delete them.
+Images are retained in ghcr.io indefinitely unless you explicitly delete them. On the VPS, `deploy.sh` deletes the previously deployed app images after a successful deploy (to stop the disk filling up), so a rollback always pulls from ghcr.io.
+
+The next push to `main` deploys `main` again, so fix forward (or revert the bad commit) after a manual rollback.
 
 ### Rollback if the deploy job never ran (ci.yml failed before deploy)
 
@@ -350,21 +416,26 @@ Trivy found a secret, CVE, or Dockerfile misconfiguration in the repository sour
 
 ### `trivy-images` fails
 
-A CVE was found in the built container image (usually in an OS package in the base image). Options:
-1. Update the base image tag in the Dockerfile (e.g. from `node:20-trixie-slim` to `node:22-trixie-slim` if a newer LTS base fixes it)
-2. Add a `RUN apt-get update && apt-get upgrade -y` layer in the Dockerfile to pull patched packages (use sparingly — it makes builds slower and less reproducible)
+A CVE was found in the built container image (usually in an OS package in the base image). Only findings that **have a fix** fail the job (`ignore-unfixed`).
+
+Both Dockerfiles already upgrade OS packages in the final stage (`apt-get upgrade` / `apk upgrade`). That layer is rebuilt once a week (the `SECURITY_REFRESH` build arg is the ISO week), so a fix published by Debian/Alpine is picked up within a week, or by the next build after the base image itself is updated. Options:
+1. If the fix is newer than this week's cached layer, wait for next week's build, or temporarily change `SECURITY_REFRESH` in `ci.yml` to force a rebuild.
+2. If the base image is end-of-life it stops receiving updates (this is what happened with `node:20-*` after April 2026): move to the current Node LTS image (`node:24-trixie-slim` / `node:24-alpine` today), and update `node-version` in the workflows and `engines` in both `package.json` files to match.
+3. If the vulnerable package is an npm dependency rather than an OS package, see `audit-deps` above.
 
 ### `deploy` fails
 
 1. Read the error in the job log — it will be either a network/SSH error or an error from `deploy.sh`
 2. If it's an SSH error: check that the VPS is reachable and the secret `VPS_SSH_HOST` is correct
-3. If `deploy.sh` failed: SSH into the VPS, check `journalctl --user -xe` and `systemctl --user status webpage-pod.service`
+3. If `deploy.sh` failed: as `deploy` on the VPS (see 3i), check `journalctl --user -xe` and `systemctl --user status webpage-pod.service`
+   - `another deployment is still running` (exit code 75): a previous deploy held `~/.deploy.lock` for more than 10 minutes. Check that no `deploy.sh` is still running (`pgrep -af deploy.sh`) and re-run the workflow.
+   - `Cloudflare IP fetch failed and no previous list exists`: only possible on a first deploy while cloudflare.com is unreachable; re-run later.
 4. The rollback function should have already restored the previous state automatically
 5. If the automatic rollback also failed: see section 6, manual rollback
 
 ### Health check times out
 
-The service pod started but didn't become healthy within 100 s. SSH into the VPS:
+The service pod started but didn't become healthy within 100 s. As `deploy` on the VPS (see 3i):
 
 ```bash
 systemctl --user status webpage-pod.service --no-pager
@@ -425,19 +496,14 @@ The AI review is not authoritative. If a comment is wrong:
 
 ### Cost control
 
-Each review call charges for the number of tokens in the diff + the prompt. Typical costs:
-- Small PR (< 50 lines changed): ~$0.02–$0.05
-- Medium PR (200–500 lines): ~$0.10–$0.30
-- Large PR (1000+ lines): ~$0.50–$1.50
+The review authenticates with a Claude subscription token (section 3f), so there is no per-review bill: each run uses part of your subscription's usage limits.
 
-**To reduce cost:**
-- Set a monthly spend limit in the Anthropic console (recommended: $5–$10/month)
-- The review only runs on PRs, not on every commit to a branch
-- It does not run on the merge commit to main (only PRs)
-- If you have a flurry of small fix commits, squash them into one before opening the PR
+- It runs when a PR to `main` is opened or reopened, and on every push to an open PR; Dependabot PRs and pushes to `main` are skipped.
+- If you push many small fix commits to a PR, each push triggers a review. Squash or push less often to save usage.
+- If you switch to an API key instead (section 3f), set a monthly spend limit in the Anthropic console.
 
 **To disable the AI review temporarily:**
-Comment out the job in `ai-review.yml` or delete the `ANTHROPIC_API_KEY` secret. The workflow will fail gracefully (it won't block anything since it has no required status check).
+Comment out the job in `ai-review.yml` or delete the `CLAUDE_CODE_OAUTH_TOKEN` secret. The workflow will then fail, but it won't block anything since it has no required status check.
 
 ---
 

@@ -1,4 +1,4 @@
-FROM node:20-trixie-slim AS builder
+FROM node:24-trixie-slim AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,14 @@ ENV NODE_OPTIONS=--max_old_space_size=512
 RUN node --max_old_space_size=512 ./node_modules/.bin/tsc
 
 # Production stage
-FROM node:20-trixie-slim
+FROM node:24-trixie-slim
+
+# Set by CI to the current ISO week so this layer is rebuilt weekly
+ARG SECURITY_REFRESH=manual
+# Apply Debian security updates released after the base image was built
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

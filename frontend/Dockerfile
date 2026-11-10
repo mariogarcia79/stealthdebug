@@ -2,7 +2,7 @@
 # File: sources/frontend/Dockerfile
 
 # Build stage - Use fully qualified image name
-FROM docker.io/library/node:20-alpine AS builder
+FROM docker.io/library/node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -24,6 +24,11 @@ RUN npm run build
 
 # Production stage - Use fully qualified image name
 FROM docker.io/library/nginx:alpine
+
+# Set by CI to the current ISO week so this layer is rebuilt weekly
+ARG SECURITY_REFRESH=manual
+# Apply Alpine security updates released after the base image was built
+RUN apk upgrade --no-cache
 
 # Copy built files to nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
