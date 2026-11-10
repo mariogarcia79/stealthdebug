@@ -98,11 +98,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Scan repository
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
           scan-type: fs
           scan-ref: .
           ignore-unfixed: true
+          # Without this, trivy-action drops --severity for SARIF output and
+          # exit-code 1 fires on ANY finding (LOW/MEDIUM included).
+          limit-severities-for-sarif: true
           format: sarif
           output: trivy-fs.sarif
           severity: HIGH,CRITICAL
@@ -182,22 +185,28 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Scan backend image
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
           ignore-unfixed: true
+          # Without this, trivy-action drops --severity for SARIF output and
+          # exit-code 1 fires on ANY finding (LOW/MEDIUM included).
+          limit-severities-for-sarif: true
           format: sarif
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
           exit-code: '1'
 
       - name: Scan frontend image
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
           ignore-unfixed: true
+          # Without this, trivy-action drops --severity for SARIF output and
+          # exit-code 1 fires on ANY finding (LOW/MEDIUM included).
+          limit-severities-for-sarif: true
           format: sarif
           output: trivy-frontend.sarif
           severity: HIGH,CRITICAL

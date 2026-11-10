@@ -24,7 +24,7 @@ jobs:
 
       - name: Scan backend image
         id: scan-backend
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/backend:latest
@@ -32,10 +32,13 @@ jobs:
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
           exit-code: '0'   # do not fail — we report via issue instead
+          # Keep SARIF to HIGH/CRITICAL so the issue count below matches the
+          # severity filter (trivy-action ignores `severity` for SARIF otherwise).
+          limit-severities-for-sarif: true
 
       - name: Scan frontend image
         id: scan-frontend
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.29.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
         with:
           scan-type: image
           image-ref: ghcr.io/${{ github.repository }}/frontend:latest
@@ -43,6 +46,9 @@ jobs:
           output: trivy-frontend.sarif
           severity: HIGH,CRITICAL
           exit-code: '0'
+          # Keep SARIF to HIGH/CRITICAL so the issue count below matches the
+          # severity filter (trivy-action ignores `severity` for SARIF otherwise).
+          limit-severities-for-sarif: true
 
       - name: Upload backend SARIF
         uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
