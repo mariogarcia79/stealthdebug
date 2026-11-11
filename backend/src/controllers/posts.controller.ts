@@ -206,11 +206,10 @@ class PostController {
     }
 
     try {
-      const deleted = await PostService.deletePostById(id);
-    
-      if (!deleted) {
-        return sendError(res, 'POST_NOT_FOUND');
-      }
+      const result = await PostService.deletePostById(id);
+
+      if (result === "not-found") return sendError(res, 'POST_NOT_FOUND');
+      if (result === "published") return sendError(res, 'POST_IS_PUBLISHED');
       return res
         .status(204)
         .send();

@@ -113,8 +113,8 @@ function BlogPost() {
     try {
       await PostAPI.deletePost(id);
       navigate('/blog');
-    } catch {
-      setError(t('post.deleteFailed'));
+    } catch (e) {
+      setError(`${t('post.deleteFailed')} ${(e as Error).message ?? ''}`.trim());
       setDeleting(false);
       setConfirming(false);
     }
@@ -162,7 +162,15 @@ function BlogPost() {
                   <button className={`btn sm ${post.published ? '' : 'primary'}`} onClick={togglePublished} disabled={toggling}>
                     {post.published ? t('post.unpublish') : t('post.publish')}
                   </button>
-                  <button className="btn sm danger" onClick={() => setConfirming(true)}>{t('post.delete')}</button>
+                  {/* Only drafts can be deleted (permanently); published posts are unpublished first */}
+                  <button
+                    className="btn sm danger"
+                    onClick={() => setConfirming(true)}
+                    disabled={post.published}
+                    title={post.published ? t('post.deleteHint') : undefined}
+                  >
+                    {t('post.delete')}
+                  </button>
                 </>
               )}
             </span>

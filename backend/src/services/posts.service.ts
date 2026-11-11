@@ -1,5 +1,6 @@
 import { FilterQuery, Types, SortOrder } from "mongoose";
 import PostModel, { IPostDocument } from "../models/Post";
+import CommentModel from "../models/Comment";
 import { IPost } from "../types/post";
 
 import {
@@ -166,20 +167,19 @@ class PostService {
     return { prev, next };
   }
 
-  static async deletePostById(id: string): Promise<boolean> {
-    if (!isObjectId(id)) return false;
+  // Permanent delete, for drafts only: a published post must be unpublished
+  // first, so a live post (and its readers' comments) can't be destroyed by
+  // one click. The post's comments are deleted with it. Its images stay in
+  // the media library (shown as unused there).
+  static async deletePostById(id: string): Promise<"deleted" | "published" | "not-found"> {
+    if (!isObjectId(id)) return "not-found";
 
-    try {
-      const result = await PostModel.updateOne(
-        { _id: id },
-        { published: false }
-      );
-
-      return result.modifiedCount > 0;
-    } catch (err) {
-      console.error("Error: deletePostById:", err);
-      return false;
+    const deleted = await PostModel.findOneAndDelete({ _id: id, published: false });
+    if (deleted) {
+      await CommentModel.deleteMany({ post: deleted._id });
+      return "deleted";
     }
+    return (await PostModel.exists({ _id: id })) ? "published" : "not-found";
   }
 }
 

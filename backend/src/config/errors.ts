@@ -7,6 +7,7 @@ export const ERRORS = {
   USER_NOT_FOUND:       { message: 'User not found',                status: 404 },
   INVALID_USER_ID:      { message: 'Invalid user ID',               status: 400 },
   POST_NOT_FOUND:       { message: 'Post not found',                status: 404 },
+  POST_IS_PUBLISHED:    { message: 'Unpublish the post before deleting it', status: 409 },
   INVALID_POST_ID:      { message: 'Invalid post ID',               status: 400 },
   INVALID_POST:         { message: 'Invalid or missing post',       status: 400 },
   FAILED_CREATE_POST:   { message: 'Failed to create post',         status: 500 },

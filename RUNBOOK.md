@@ -660,7 +660,7 @@ It backs up the volume to `~/uploads-backups/`, changes only file ownership and 
 
 Post fields besides the Markdown:
 
-- **Published / draft**: the switch in the editor header. New posts start as **drafts**: only the admin sees them (in the blog list with a "draft" badge, and on their page). Drafts are a 404 for everyone else, take no comments, and are left out of the sitemap, the series counts and the older/newer links. The post page also has a quick publish/unpublish button.
+- **Published / draft**: the switch in the editor header. New posts start as **drafts**: only the admin sees them (in the blog list with a "draft" badge, and on their page). Drafts are a 404 for everyone else, take no comments, and are left out of the sitemap, the series counts and the older/newer links. The post page also has a quick publish/unpublish button. **Deleting is permanent and only possible for drafts** (unpublish first): the post and its comments are removed from the database; its images stay in the media library as "unused". Note: before this change "delete" only unpublished a post, so posts deleted that way are still in the database and now show up as drafts in the blog list.
 - **Tags** (up to 8): lowercase, spaces become `-` (`Embedded Linux` → `embedded-linux`). Shown on the post and in lists; clicking one filters the blog (`/blog?tag=uart`).
 - **Series**: posts with exactly the same series name form a series, ordered by publication date ("part 1/2"). The post page lists the other parts.
 

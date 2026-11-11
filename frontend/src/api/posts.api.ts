@@ -102,7 +102,7 @@ class PostAPI {
           const errJson = await response.json();
           errText = errJson?.message || errJson?.error || errText;
         } catch {}
-        throw new Error(`Failed to delete post: ${errText}`);
+        throw new Error(errText);
       }
     } catch (error) {
       console.error(`Error deleting post ${id}:`, error);
