@@ -2,9 +2,10 @@ import type { PostDetail, PostInput, PostSummary } from '../types/post';
 import { API_BASE_URL } from '../constants/constants';
 
 class PostAPI {
-  static async getAllPosts(): Promise<PostSummary[]> {
+  // drafts: the admin's blog list also shows unpublished posts
+  static async getAllPosts(drafts = false): Promise<PostSummary[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/posts`);
+      const response = await fetch(`${API_BASE_URL}/posts${drafts ? '?drafts=1' : ''}`, { credentials: 'include' });
       if (!response.ok) {
         let errText = response.statusText;
         try {
@@ -22,7 +23,8 @@ class PostAPI {
 
   static async getPostById(id: string): Promise<PostDetail> {
     try {
-      const response = await fetch(`${API_BASE_URL}/posts/${id}`);
+      // with the session cookie, so the admin can open unpublished posts
+      const response = await fetch(`${API_BASE_URL}/posts/${id}`, { credentials: 'include' });
       if (!response.ok) {
         let errText = response.statusText;
         try {

@@ -157,7 +157,7 @@ function imagesFromLibrary(items: Media[]): PostImages {
 // ---------------------------------------------------------------------------
 // Drafts (per post, in this browser only)
 // ---------------------------------------------------------------------------
-interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string }
+interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string; published: boolean }
 interface Draft extends Snapshot { savedAt: number }
 
 const draftKey = (id?: string) => `stealthdebug:draft:${id ?? 'new'}`;
@@ -180,9 +180,11 @@ function clearDraft(id?: string) {
 }
 const same = (a: Snapshot, b: Snapshot) =>
   a.title === b.title && a.summary === b.summary && a.content === b.content &&
-  (a.tags ?? []).join('\n') === (b.tags ?? []).join('\n') && (a.series ?? '') === (b.series ?? '');
+  (a.tags ?? []).join('\n') === (b.tags ?? []).join('\n') && (a.series ?? '') === (b.series ?? '') &&
+  (a.published ?? b.published) === b.published;
 
-const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '' };
+// New posts start as drafts: visible only to the admin until published
+const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '', published: false };
 
 // Same rules as the backend (normalizeTags): lowercase, no "#", spaces -> "-"
 function normalizeTag(raw: string): string {
@@ -238,6 +240,7 @@ function BlogEditor() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [series, setSeries] = useState('');
+  const [published, setPublished] = useState(false);
   const [saved, setSaved] = useState<Snapshot>(EMPTY);
   const [loaded, setLoaded] = useState(!isEditing);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -252,7 +255,7 @@ function BlogEditor() {
   const [postImages, setPostImages] = useState<PostImages>({});
 
   const cm = useRef<ReactCodeMirrorRef>(null);
-  const current: Snapshot = { title, summary, content, tags, series };
+  const current: Snapshot = { title, summary, content, tags, series, published };
   const dirty = loaded && !same(current, saved);
   const contentTooLong = content.length > MAX_CONTENT_LENGTH;
 
@@ -266,7 +269,7 @@ function BlogEditor() {
     const start = (s: Snapshot) => {
       if (cancelled) return;
       setTitle(s.title); setSummary(s.summary); setContent(s.content);
-      setTags(s.tags); setSeries(s.series);
+      setTags(s.tags); setSeries(s.series); setPublished(s.published);
       setSaved(s); setLoaded(true);
       const draft = readDraft(id);
       if (draft && !same(draft, s)) setDraftOffer(draft);
@@ -276,7 +279,7 @@ function BlogEditor() {
       PostAPI.getPostById(id)
         .then((post) => {
           setPostImages(post.images ?? {});
-          start({ title: post.title, summary: post.summary, content: post.content, tags: post.tags ?? [], series: post.series?.name ?? '' });
+          start({ title: post.title, summary: post.summary, content: post.content, tags: post.tags ?? [], series: post.series?.name ?? '', published: post.published });
         })
         .catch(() => !cancelled && setError('Failed to load post'));
     } else {
@@ -293,7 +296,7 @@ function BlogEditor() {
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, summary, content, tags, series, loaded, dirty, id]);
+  }, [title, summary, content, tags, series, published, loaded, dirty, id]);
 
   // Warn before closing the tab with unsaved changes.
   useEffect(() => {
@@ -325,12 +328,14 @@ function BlogEditor() {
   // Save
   const save = useCallback(async () => {
     if (saveState === 'saving') return;
+    // Saving now would store the "Uploading…" placeholder instead of the image
+    if (uploading > 0) { setError('Wait for the image upload to finish before saving.'); setSaveState('error'); return; }
     const clientError = validatePost(title, summary, content);
     if (clientError) { setError(clientError); setSaveState('error'); return; }
 
     setSaveState('saving');
     setError('');
-    const snapshot: Snapshot = { title, summary, content, tags, series: series.trim() };
+    const snapshot: Snapshot = { title, summary, content, tags, series: series.trim(), published };
     try {
       if (isEditing && id) {
         await PostAPI.updatePost(id, snapshot);
@@ -348,7 +353,7 @@ function BlogEditor() {
       setError(err?.message || 'Failed to save.');
       setSaveState('error');
     }
-  }, [saveState, title, summary, content, tags, series, isEditing, id, navigate, loadMedia]);
+  }, [saveState, uploading, title, summary, content, tags, series, published, isEditing, id, navigate, loadMedia]);
 
   // Ctrl/Cmd+S anywhere on the page
   const saveRef = useRef(save);
@@ -459,6 +464,16 @@ function BlogEditor() {
           </div>
           <h1>{isEditing ? 'Edit post' : 'New post'}</h1>
           <span className={`editor-status ${dirty ? 'dirty' : ''}`}>{status}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={published}
+            className={`publish-switch ${published ? 'on' : ''}`}
+            onClick={() => setPublished((p) => !p)}
+            title={published ? 'Visible to everyone. Click, then save, to unpublish.' : 'Only you can see it. Click, then save, to publish.'}
+          >
+            <i aria-hidden="true" />{published ? 'published' : 'draft'}
+          </button>
           {isEditing && (
             <Link to={`/blog/${id}`} className="btn sm" target="_blank" rel="noopener noreferrer">view ↗</Link>
           )}
@@ -468,7 +483,7 @@ function BlogEditor() {
             disabled={!loaded || saveState === 'saving' || contentTooLong || (isEditing && !dirty)}
             title="Ctrl+S"
           >
-            {isEditing ? 'save' : 'publish'}
+            {isEditing ? 'save' : published ? 'save & publish' : 'save draft'}
           </button>
         </div>
 
@@ -480,6 +495,7 @@ function BlogEditor() {
             <button className="btn sm" onClick={() => {
               setTitle(draftOffer.title); setSummary(draftOffer.summary); setContent(draftOffer.content);
               setTags(draftOffer.tags ?? []); setSeries(draftOffer.series ?? '');
+              if (typeof draftOffer.published === 'boolean') setPublished(draftOffer.published);
               setDraftOffer(null);
             }}>restore</button>
             <button className="btn sm ghost" onClick={() => { clearDraft(id); setDraftOffer(null); }}>discard</button>

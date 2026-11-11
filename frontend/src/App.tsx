@@ -14,6 +14,14 @@ import UserList from './components/user/UserList';
 import { ProtectedRoute } from './components/page/ProtectedRoute';
 import Footer from './components/page/Footer';
 import NotFound from './components/error/NotFound';
+// Legal documents (8 markdown files): loaded only when one is opened
+const LegalPageLazy = lazy(() => import('./components/legal/LegalPage'));
+type LegalProps = { doc: 'privacy' | 'terms' | 'legal' | 'security'; lang?: 'en' | 'es' };
+const LegalPage = (props: LegalProps) => (
+  <Suspense fallback={<div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>…</p></div>}>
+    <LegalPageLazy {...props} />
+  </Suspense>
+);
 
 // New page = start at the top (unless jumping to a #section)
 function ScrollToTop() {
@@ -85,6 +93,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Legal documents (both languages; the Spanish addresses open the Spanish version) */}
+          <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+          <Route path="/terms" element={<LegalPage doc="terms" />} />
+          <Route path="/legal" element={<LegalPage doc="legal" />} />
+          <Route path="/security" element={<LegalPage doc="security" />} />
+          <Route path="/privacidad" element={<LegalPage doc="privacy" lang="es" />} />
+          <Route path="/condiciones" element={<LegalPage doc="terms" lang="es" />} />
+          <Route path="/aviso-legal" element={<LegalPage doc="legal" lang="es" />} />
+          <Route path="/seguridad" element={<LegalPage doc="security" lang="es" />} />
 
           {/* Fallback route for 404 Not Found */}
           <Route path="*" element={<NotFound />} />

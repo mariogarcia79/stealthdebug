@@ -9,16 +9,20 @@ export function isValidEmail(email: unknown): boolean {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
-export function validateSignup(name: string, email: string, password: string): string | null {
-  if (!name || name.trim().length === 0) return 'Name is required';
-  if (!email || !isValidEmail(email)) return 'A valid email is required';
-  if (!password || password.length < MIN_PASSWORD_LENGTH) return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+// Sign-up and login checks return a translation key (see src/i18n) and its
+// parameters, so the message is shown in the visitor's language.
+export type ValidationError = { key: 'auth.nameRequired' | 'auth.emailRequired' | 'auth.passwordShort' | 'auth.passwordRequired'; vars?: Record<string, number> };
+
+export function validateSignup(name: string, email: string, password: string): ValidationError | null {
+  if (!name || name.trim().length === 0) return { key: 'auth.nameRequired' };
+  if (!email || !isValidEmail(email)) return { key: 'auth.emailRequired' };
+  if (!password || password.length < MIN_PASSWORD_LENGTH) return { key: 'auth.passwordShort', vars: { n: MIN_PASSWORD_LENGTH } };
   return null;
 }
 
-export function validateLogin(name: string, password: string): string | null {
-  if (!name || name.trim().length === 0) return 'Name is required';
-  if (!password) return 'Password is required';
+export function validateLogin(name: string, password: string): ValidationError | null {
+  if (!name || name.trim().length === 0) return { key: 'auth.nameRequired' };
+  if (!password) return { key: 'auth.passwordRequired' };
   return null;
 }
 

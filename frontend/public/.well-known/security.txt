@@ -1,0 +1,10 @@
+# Security contact for stealthdebug.org (RFC 9116).
+# Policy, scope and rules for testing: https://stealthdebug.org/security
+Contact: mailto:contact@stealthdebug.org
+# OpenPGP key, fingerprint 0D5B 0E0A 0B6D BBB2 E4CE  0C3C 6B2C 97DB 7554 E2DD
+Encryption: https://stealthdebug.org/.well-known/pgp-key.txt
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: en, es
+Canonical: https://stealthdebug.org/.well-known/security.txt
+Policy: https://stealthdebug.org/security
+Acknowledgments: https://stealthdebug.org/security?lang=en#acknowledgements

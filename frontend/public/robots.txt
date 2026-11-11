@@ -1,0 +1,81 @@
+# robots.txt for stealthdebug.org
+#
+# Search engines and AI assistants that fetch a page to answer someone's
+# question (ChatGPT-User, OAI-SearchBot, Claude-User, Claude-SearchBot,
+# Perplexity-User, PerplexityBot, DuckAssistBot, MistralAI-User, Googlebot,
+# Bingbot, ...) are welcome: they follow the "*" rules below.
+#
+# Crawlers that collect content to TRAIN AI models are not allowed (the
+# groups further down).
+
+User-agent: *
+# Content Signals (https://contentsignals.org): search indexing and use as
+# input to answer a question are allowed; training models is not.
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /users
+Disallow: /blog/new
+Disallow: /blog/edit/
+Allow: /api/uploads/
+
+# --- AI training crawlers -----------------------------------------------
+# OpenAI (model training; ChatGPT-User and OAI-SearchBot stay allowed)
+User-agent: GPTBot
+Disallow: /
+
+# Anthropic (model training; Claude-User and Claude-SearchBot stay allowed)
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+# Google: Gemini training (does not affect Google Search)
+User-agent: Google-Extended
+Disallow: /
+
+# Apple: Apple Intelligence training (does not affect Applebot / Siri search)
+User-agent: Applebot-Extended
+Disallow: /
+
+# Meta: model training
+User-agent: meta-externalagent
+Disallow: /
+
+# Common Crawl: public dataset widely used for training
+User-agent: CCBot
+Disallow: /
+
+# ByteDance
+User-agent: Bytespider
+Disallow: /
+
+# Cohere
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+# Allen Institute for AI
+User-agent: AI2Bot
+Disallow: /
+
+# Huawei
+User-agent: PanguBot
+Disallow: /
+
+# Webz.io / Omgili (sells crawled data for training)
+User-agent: omgili
+Disallow: /
+
+User-agent: omgilibot
+Disallow: /
+
+# Diffbot (knowledge graph sold for AI)
+User-agent: Diffbot
+Disallow: /
+
+# Timpi
+User-agent: Timpibot
+Disallow: /
+
+Sitemap: https://stealthdebug.org/sitemap.xml

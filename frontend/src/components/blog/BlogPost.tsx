@@ -7,6 +7,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import BlogCommentList from './BlogCommentList';
 import NotFound from '../error/NotFound';
 import { isoDate } from '../../utils/format';
+import { useI18n } from '../../i18n';
 
 interface Heading { id: string; text: string; level: number }
 
@@ -17,6 +18,7 @@ function Toc({ article }: { article: React.RefObject<HTMLElement | null> }) {
   const [active, setActive] = useState('');
   const [progress, setProgress] = useState(0);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const el = article.current;
@@ -53,7 +55,7 @@ function Toc({ article }: { article: React.RefObject<HTMLElement | null> }) {
     <div className="toc">
       {headings.length > 0 && (
         <>
-          <span className="label">contents</span>
+          <span className="label">{t('post.contents')}</span>
           <ol>
             {headings.map((h) => (
               <li key={h.id} className={`${h.level === 3 ? 'sub' : ''} ${h.id === active ? 'active' : ''}`}>
@@ -64,12 +66,12 @@ function Toc({ article }: { article: React.RefObject<HTMLElement | null> }) {
         </>
       )}
       <div className="progress">
-        {Math.round(progress)}% read
+        {t('post.read', { n: Math.round(progress) })}
         <div className="bar"><i style={{ width: `${progress}%` }} /></div>
       </div>
       <div className="actions">
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>↑ back to top</button>
-        <button type="button" onClick={copyLink}>{copied ? '✓ link copied' : '⧉ copy link'}</button>
+        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>{t('post.backToTop')}</button>
+        <button type="button" onClick={copyLink}>{copied ? t('post.linkCopied') : t('post.copyLink')}</button>
       </div>
     </div>
   );
@@ -81,8 +83,10 @@ function BlogPost() {
   const [post, setPost] = useState<PostDetail | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const [error, setError] = useState('');
   const { isLoggedIn, role } = useAuth();
+  const { t } = useI18n();
   const article = useRef<HTMLDivElement>(null);
   const isAdmin = isLoggedIn && role === 'admin';
 
@@ -110,14 +114,29 @@ function BlogPost() {
       await PostAPI.deletePost(id);
       navigate('/blog');
     } catch {
-      setError('Failed to delete post.');
+      setError(t('post.deleteFailed'));
       setDeleting(false);
       setConfirming(false);
     }
   };
 
+  // Admin: publish / unpublish right from the post
+  const togglePublished = async () => {
+    if (!post) return;
+    setToggling(true);
+    setError('');
+    try {
+      await PostAPI.updatePost(post._id, { published: !post.published });
+      setPost(await PostAPI.getPostById(post._id));
+    } catch {
+      setError(t('post.publishFailed'));
+    } finally {
+      setToggling(false);
+    }
+  };
+
   if (post === undefined) {
-    return <div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>loading post</p></div>;
+    return <div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>{t('post.loading')}</p></div>;
   }
   if (post === null || (!post.published && !isAdmin)) return <NotFound />;
 
@@ -133,14 +152,17 @@ function BlogPost() {
             <span className="admin-actions">
               {confirming ? (
                 <>
-                  <span className="muted">delete this post?</span>
-                  <button className="btn sm danger" onClick={handleDelete} disabled={deleting}>{deleting ? 'deleting…' : 'yes, delete'}</button>
-                  <button className="btn sm ghost" onClick={() => setConfirming(false)}>cancel</button>
+                  <span className="muted">{t('post.deleteConfirm')}</span>
+                  <button className="btn sm danger" onClick={handleDelete} disabled={deleting}>{deleting ? t('post.deleting') : t('post.deleteYes')}</button>
+                  <button className="btn sm ghost" onClick={() => setConfirming(false)}>{t('comments.cancel')}</button>
                 </>
               ) : (
                 <>
-                  <Link to={`/blog/edit/${post._id}`} className="btn sm">edit</Link>
-                  <button className="btn sm danger" onClick={() => setConfirming(true)}>delete</button>
+                  <Link to={`/blog/edit/${post._id}`} className="btn sm">{t('post.edit')}</Link>
+                  <button className={`btn sm ${post.published ? '' : 'primary'}`} onClick={togglePublished} disabled={toggling}>
+                    {post.published ? t('post.unpublish') : t('post.publish')}
+                  </button>
+                  <button className="btn sm danger" onClick={() => setConfirming(true)}>{t('post.delete')}</button>
                 </>
               )}
             </span>
@@ -150,24 +172,27 @@ function BlogPost() {
         <p className="lead">{post.summary}</p>
         <div className="post-meta">
           <time dateTime={post.createdAt}>{isoDate(post.createdAt)}</time>
-          <span>{post.readingMinutes} min read</span>
-          {post.series && <span className="series">series: {post.series.name} · part {post.series.part}/{post.series.total}</span>}
-          {imageCount > 0 && <span>{imageCount} {imageCount === 1 ? 'image' : 'images'}</span>}
-          {!post.published && <span className="tag" style={{ color: 'var(--danger-fg)' }}>unpublished</span>}
+          <span>{t('post.minRead', { n: post.readingMinutes })}</span>
+          {post.series && (post.series.part > 0
+            ? <span className="series">{t('post.series', { name: post.series.name, part: post.series.part, total: post.series.total })}</span>
+            : <span className="series">{t('post.seriesLabel')}: {post.series.name}</span>)}
+          {imageCount > 0 && <span>{imageCount} {imageCount === 1 ? t('post.image') : t('post.images')}</span>}
+          {!post.published && <span className="tag" style={{ color: 'var(--danger-fg)' }}>{t('post.unpublished')}</span>}
           {post.tags.length > 0 && (
             <span className="tags">
               {post.tags.map((t) => <Link key={t} className="tag" to={`/blog?tag=${encodeURIComponent(t)}`}>#{t}</Link>)}
             </span>
           )}
         </div>
+        {!post.published && <p className="alert draft-notice" style={{ marginTop: 18 }}>{t('post.draftNotice')}</p>}
         {error && <p className="alert error" style={{ marginTop: 18 }}>{error}</p>}
       </header>
 
       <div className="post-grid">
         <article ref={article}>
           {post.series && post.series.total > 1 && (
-            <nav className="panel series-box" aria-label="Series">
-              <span className="label">series · <b>{post.series.name}</b></span>
+            <nav className="panel series-box" aria-label={t('post.seriesLabel')}>
+              <span className="label">{t('post.seriesLabel')} · <b>{post.series.name}</b></span>
               <ol>
                 {post.series.posts.map((p) => (
                   <li key={p._id} className={p._id === post._id ? 'current' : ''}>
@@ -182,15 +207,15 @@ function BlogPost() {
 
           <footer className="post-end">
             {(post.prev || post.next) && (
-              <nav className="nextprev" aria-label="More posts">
+              <nav className="nextprev" aria-label={t('post.morePosts')}>
                 {post.prev && (
                   <Link to={`/blog/${post.prev._id}`} className="panel">
-                    <small>← older</small><b>{post.prev.title}</b>
+                    <small>{t('post.older')}</small><b>{post.prev.title}</b>
                   </Link>
                 )}
                 {post.next && (
                   <Link to={`/blog/${post.next._id}`} className="panel r">
-                    <small>newer →</small><b>{post.next.title}</b>
+                    <small>{t('post.newer')}</small><b>{post.next.title}</b>
                   </Link>
                 )}
               </nav>

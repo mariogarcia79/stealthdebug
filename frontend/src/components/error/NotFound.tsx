@@ -1,18 +1,20 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useI18n } from '../../i18n';
 
 function NotFound() {
   const { pathname } = useLocation();
+  const { t } = useI18n();
   const path = pathname.length > 40 ? pathname.slice(0, 39) + '…' : pathname;
 
   return (
     <div className="wrap nf">
       <div>
         <div className="code" aria-hidden="true">404</div>
-        <h1>Nothing at this address.</h1>
-        <p>The page you were looking for doesn't exist, moved, or never did. Fuzzing the URL won't help either.</p>
+        <h1>{t('nf.title')}</h1>
+        <p>{t('nf.text')}</p>
         <div className="ctas">
           <Link to="/" className="btn primary">~/home</Link>
-          <Link to="/blog" className="btn">browse the blog</Link>
+          <Link to="/blog" className="btn">{t('nf.browse')}</Link>
         </div>
       </div>
       <div className="panel" aria-hidden="true">

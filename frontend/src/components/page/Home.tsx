@@ -4,6 +4,7 @@ import PostAPI from '../../api/posts.api';
 import type { PostSummary } from '../../types/post';
 import { useAuth } from '../../context/AuthContext';
 import PostRow from '../blog/PostRow';
+import { useI18n } from '../../i18n';
 
 // Decorative: the first bytes of a MIPS kernel uImage (magic 27 05 19 56)
 // and a SquashFS root filesystem, as found in router firmware dumps.
@@ -42,6 +43,7 @@ function Hexdump() {
 function Home() {
   const { isLoggedIn, role } = useAuth();
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     PostAPI.getAllPosts().then(setPosts).catch(() => setPosts([]));
@@ -55,16 +57,14 @@ function Home() {
     <div className="wrap">
       <section className="hero">
         <div>
-          <div className="eyebrow"><span className="p">$</span> <span className="c">whoami</span> — reverse engineering · firmware · embedded</div>
-          <h1>Getting into the <em>guts</em> of technology.</h1>
+          <div className="eyebrow"><span className="p">$</span> <span className="c">whoami</span> — {t('home.whoami')}</div>
+          <h1>{t('home.title1')}<em>{t('home.titleEm')}</em>{t('home.title2')}</h1>
           <p className="lead">
-            Hands-on write-ups on <strong>reverse engineering embedded systems</strong>: opening the
-            hardware, dumping and breaking down firmware, and bypassing software protections.
-            No shortcuts, just how things really work.
+            {t('home.lead1')}<strong>{t('home.leadStrong')}</strong>{t('home.lead2')}
           </p>
           <div className="ctas">
-            <Link to="/blog" className="btn primary">read the blog →</Link>
-            {latest && <Link to={`/blog/${latest._id}`} className="btn" title={latest.title}>latest post →</Link>}
+            <Link to="/blog" className="btn primary">{t('home.readBlog')}</Link>
+            {latest && <Link to={`/blog/${latest._id}`} className="btn" title={latest.title}>{t('home.latestPost')}</Link>}
           </div>
           <div className="topics">
             {topics.map((t) => (
@@ -85,13 +85,13 @@ function Home() {
       )}
 
       <div className="section-head">
-        <h2>latest posts</h2><span className="rule" />
-        <Link to="/blog" className="count">{posts ? `${posts.length} posts · all →` : ''}</Link>
+        <h2>{t('home.latestPosts')}</h2><span className="rule" />
+        <Link to="/blog" className="count">{posts ? t('home.allPosts', { n: posts.length }) : ''}</Link>
       </div>
       {posts === null ? (
-        <p className="empty loading">loading posts</p>
+        <p className="empty loading">{t('blog.loading')}</p>
       ) : posts.length === 0 ? (
-        <p className="empty">No posts yet.</p>
+        <p className="empty">{t('blog.none')}</p>
       ) : (
         <div className="posts">
           {posts.slice(0, 3).map((p, i) => <PostRow key={p._id} post={p} index={posts.length - i} />)}

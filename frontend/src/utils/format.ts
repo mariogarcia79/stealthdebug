@@ -24,6 +24,7 @@ export function initials(name: string | undefined): string {
 // Same slug as the heading ids generated in MarkdownRenderer
 export function slugify(text: string): string {
   return text
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // á → a, ñ → n
     .toLowerCase()
     .replace(/[`*_~[\]()]/g, '')
     .replace(/[^a-z0-9\s-]/g, '')

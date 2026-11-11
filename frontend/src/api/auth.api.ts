@@ -7,7 +7,7 @@ class AuthAPI {
     const options: RequestInit = {
       method: 'POST',
       headers,
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify(admin ? { name, email, password } : { name, email, password, acceptTerms: true }),
     };
     
     // Only add credentials for admin signup (needs cookie auth)
@@ -23,11 +23,12 @@ class AuthAPI {
         const errJson = await response.json();
         errText = errJson?.message || errJson?.error || errText;
       } catch {}
-      throw new Error(`Failed to signup: ${errText}`);
+      throw new Error(errText);
     }
     return await response.json();
   }
 
+  // Public sign-up: only called once the visitor has ticked the terms box
   static async signUp(name: string, email: string, password: string) {
     return this._signUp(name, email, password);
   }

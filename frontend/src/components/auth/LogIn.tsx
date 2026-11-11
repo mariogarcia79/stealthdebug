@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AuthAPI from '../../api/auth.api';
 import { validateLogin } from '../../utils/validation';
+import { useI18n } from '../../i18n';
 
 function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,7 +17,7 @@ function Login() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     const clientError = validateLogin(name, password);
-    if (clientError) { setError(clientError); return; }
+    if (clientError) { setError(t(clientError.key, clientError.vars)); return; }
     try {
       setLoading(true);
       setError('');
@@ -23,7 +25,7 @@ function Login() {
       await login();
       navigate('/blog');
     } catch (err: any) {
-      setError(String(err?.response?.data?.message || err?.message || 'Login failed. Check your credentials.'));
+      setError(String(err?.response?.data?.message || err?.message || t('auth.loginFailed')));
     } finally {
       setLoading(false);
     }
@@ -35,21 +37,21 @@ function Login() {
         <div className="panel-bar"><span><span className="dot" />auth@stealthdebug</span><span>tty1</span></div>
         <form onSubmit={handleLogin} noValidate>
           <div className="eyebrow"><span className="p">$</span> <span className="c">login</span></div>
-          <h1>Log in</h1>
-          <p>Log in to comment on posts.</p>
+          <h1>{t('auth.loginTitle')}</h1>
+          <p>{t('auth.loginLead')}</p>
           <div className="field">
-            <label htmlFor="name">name</label>
+            <label htmlFor="name">{t('auth.name')}</label>
             <input id="name" className="input" autoComplete="username" value={name}
               onChange={(e) => setName(e.target.value)} disabled={loading} autoFocus />
           </div>
           <div className="field">
-            <label htmlFor="password">password</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <input id="password" className="input" type="password" autoComplete="current-password" value={password}
               onChange={(e) => setPassword(e.target.value)} disabled={loading} />
           </div>
           {error && <div className="alert error" role="alert">{error}</div>}
-          <button type="submit" className="btn primary block" disabled={loading}>{loading ? 'logging in…' : 'log in'}</button>
-          <div className="alt">no account? <Link to="/signup">sign up</Link></div>
+          <button type="submit" className="btn primary block" disabled={loading}>{loading ? t('auth.loggingIn') : t('auth.loginButton')}</button>
+          <div className="alt">{t('auth.noAccount')} <Link to="/signup">{t('nav.signup')}</Link></div>
         </form>
       </div>
     </div>

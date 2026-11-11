@@ -7,7 +7,7 @@ export interface PostLink {
 
 export interface PostSeries {
   name:  string;
-  part:  number;          // 1-based position among published posts of the series
+  part:  number;          // 1-based position among published posts of the series; 0 = this post is a draft
   total: number;
   posts: PostLink[];      // oldest first
 }
@@ -39,4 +39,4 @@ export interface PostDetail extends Omit<Post, 'series'> {
   next:           PostLink | null;   // newer
 }
 
-export type PostInput = Pick<Post, 'title' | 'summary' | 'content' | 'tags' | 'series'>;
+export type PostInput = Pick<Post, 'title' | 'summary' | 'content' | 'tags' | 'series' | 'published'>;

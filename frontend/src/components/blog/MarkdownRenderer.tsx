@@ -1,9 +1,12 @@
-import { createContext, useContext, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import { Link } from "react-router-dom";
 import type { Root, Element, ElementContent } from "hast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypePrism from "rehype-prism-plus";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import { useI18n } from "../../i18n";
 import type { PostImages } from "../../types/media";
 import { slugify } from "../../utils/format";
 
@@ -31,10 +34,12 @@ const InsideLink = createContext(false);
 const Images = createContext<PostImages | undefined>(undefined);
 
 function Anchor(props: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
-  const { node: _node, ...rest } = props;
+  const { node: _node, href, ...rest } = props;
+  // Links to pages of this site navigate inside the app; others open normally
+  const internal = !!href && href.startsWith("/") && !href.startsWith("//") && !href.startsWith("/api/") && !href.startsWith("/.well-known/");
   return (
     <InsideLink.Provider value={true}>
-      <a {...rest} />
+      {internal ? <Link to={href} {...rest} /> : <a href={href} {...rest} />}
     </InsideLink.Provider>
   );
 }
@@ -45,6 +50,7 @@ function Image(props: ComponentPropsWithoutRef<"img"> & { node?: unknown }) {
     const { node: _node, src, alt, title } = props;
     const images = useContext(Images);
     const insideLink = useContext(InsideLink);
+    const { t } = useI18n();
     const name = uploadFilename(typeof src === "string" ? src : undefined);
     const info = name ? images?.[name] : undefined;
 
@@ -73,7 +79,7 @@ function Image(props: ComponentPropsWithoutRef<"img"> & { node?: unknown }) {
 
     if (insideLink) return img;
     return (
-      <a href={src} target="_blank" rel="noopener noreferrer" className="prose-image-link" title="Open full size">
+      <a href={src} target="_blank" rel="noopener noreferrer" className="prose-image-link" title={t("image.openFull")}>
         {img}
       </a>
     );
@@ -114,7 +120,8 @@ function rehypeHeadingIds() {
 
 // GitHub-style alerts: "> [!NOTE]", "> [!TIP]", "> [!WARNING]", ...
 const CALLOUT_RE = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/i;
-function rehypeCallouts() {
+type CalloutLabels = Record<string, string>;
+function rehypeCallouts(labels: CalloutLabels) {
   return (tree: Root) => {
     walk(tree, (el) => {
       if (el.tagName !== "blockquote") return;
@@ -130,7 +137,7 @@ function rehypeCallouts() {
       el.properties = { ...el.properties, className: ["callout", kind] };
       el.children.unshift({
         type: "element", tagName: "span", properties: { className: ["callout-title"] },
-        children: [{ type: "text", value: kind === "caution" ? "careful" : kind }],
+        children: [{ type: "text", value: labels[kind] ?? kind }],
       });
     });
   };
@@ -141,6 +148,7 @@ function Pre(props: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
   const { node: _node, className, children, ...rest } = props;
   const ref = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
   const lang = /language-([\w+-]+)/.exec(className ?? "")?.[1] ?? "text";
 
   const copy = async () => {
@@ -155,7 +163,7 @@ function Pre(props: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
     <div className="panel codeblock">
       <div className="panel-bar">
         <span>{lang}</span>
-        <button type="button" className="copy" onClick={copy}>{copied ? "copied ✓" : "copy"}</button>
+        <button type="button" className="copy" onClick={copy}>{copied ? t("code.copied") : t("code.copy")}</button>
       </div>
       <pre ref={ref} className={className} {...rest}>{children}</pre>
     </div>
@@ -165,11 +173,21 @@ function Pre(props: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
 const COMPONENTS: Components = { a: Anchor, img: Image, pre: Pre };
 
 export default function MarkdownRenderer({ content, images }: MarkdownProps) {
+  const { t } = useI18n();
+  const rehypePlugins = useMemo(() => {
+    const labels: CalloutLabels = {
+      note: t("callout.note"), tip: t("callout.tip"), important: t("callout.important"),
+      warning: t("callout.warning"), caution: t("callout.caution"),
+    };
+    return [rehypeRaw, [rehypeSanitize, defaultSchema], rehypeHeadingIds, [rehypeCallouts, labels], [rehypePrism, { ignoreMissing: true }]] as const;
+  }, [t]);
   return (
     <Images.Provider value={images}>
       <div className="prose">
         <ReactMarkdown
-          rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema], rehypeHeadingIds, rehypeCallouts, [rehypePrism, { ignoreMissing: true }]]}
+          remarkPlugins={[remarkGfm]}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rehypePlugins={rehypePlugins as any}
           components={COMPONENTS}
         >
           {content}

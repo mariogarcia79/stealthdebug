@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { PostSummary } from '../../types/post';
 import { isoDate } from '../../utils/format';
+import { useI18n } from '../../i18n';
 
 interface Props {
   post: PostSummary;
@@ -31,12 +32,14 @@ function Cover({ post }: { post: PostSummary }) {
 }
 
 function PostRow({ post, index, onTag }: Props) {
+  const { t } = useI18n();
   return (
     <article className={`post-row ${post.cover ? '' : 'no-cover'}`}>
       <div className="meta">
         <span className="idx">0x{index.toString(16).padStart(2, '0')}</span>
         <time dateTime={post.createdAt}>{isoDate(post.createdAt)}</time>
-        <span>{post.readingMinutes} min read</span>
+        <span>{t('post.minRead', { n: post.readingMinutes })}</span>
+        {!post.published && <span className="tag draft">{t('post.draft')}</span>}
       </div>
       <div>
         <h3><Link to={`/blog/${post._id}`}>{post.title}</Link></h3>

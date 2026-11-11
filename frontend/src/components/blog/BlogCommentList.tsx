@@ -4,11 +4,13 @@ import { useAuth } from "../../context/AuthContext";
 import CommentAPI from "../../api/comments.api";
 import BlogComment from "./BlogComment";
 import type { Comment } from "../../types/comment";
+import { useI18n } from "../../i18n";
 
 const COMMENT_MAX = 2000;
 
 function BlogCommentList({ postId }: { postId: string }) {
   const { isLoggedIn } = useAuth();
+  const { t } = useI18n();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
@@ -19,7 +21,7 @@ function BlogCommentList({ postId }: { postId: string }) {
     setLoading(true);
     CommentAPI.getCommentsByPost(postId)
       .then(setComments)
-      .catch(() => setError("Could not load comments."))
+      .catch(() => setError("comments.loadError"))
       .finally(() => setLoading(false));
   }, [postId]);
 
@@ -33,7 +35,7 @@ function BlogCommentList({ postId }: { postId: string }) {
       setComments((prev) => [created, ...prev]);
       setContent("");
     } catch {
-      setError("Failed to post the comment.");
+      setError("comments.postError");
     } finally {
       setPosting(false);
     }
@@ -42,41 +44,41 @@ function BlogCommentList({ postId }: { postId: string }) {
   return (
     <section className="comments" id="comments">
       <div className="section-head">
-        <h2>comments</h2><span className="rule" />
+        <h2>{t("comments.title")}</h2><span className="rule" />
         <span className="count">{loading ? "" : comments.length}</span>
       </div>
 
       {isLoggedIn ? (
         <form onSubmit={handleSubmit} className="panel composer">
-          <label className="visually-hidden" htmlFor="comment">Comment</label>
+          <label className="visually-hidden" htmlFor="comment">{t("comments.label")}</label>
           <textarea
             id="comment"
             className="input prose-input"
-            placeholder="Write a comment…"
+            placeholder={t("comments.placeholder")}
             value={content}
             maxLength={COMMENT_MAX}
             onChange={(e) => setContent(e.target.value)}
             rows={4}
           />
           <div className="row">
-            <span>{content.length} / {COMMENT_MAX}</span>
+            <span>{t("comments.publicNote")} · {content.length} / {COMMENT_MAX}</span>
             <button className="btn sm primary" disabled={posting || !content.trim()}>
-              {posting ? "posting…" : "post comment"}
+              {posting ? t("comments.posting") : t("comments.post")}
             </button>
           </div>
         </form>
       ) : (
         <p className="panel composer-login">
-          <Link to="/login">Log in</Link> or <Link to="/signup">sign up</Link> to join the discussion.
+          <Link to="/login">{t("comments.loginPrompt1")}</Link>{t("comments.loginPrompt2")}<Link to="/signup">{t("comments.loginPrompt3")}</Link>{t("comments.loginPrompt4")}
         </p>
       )}
 
-      {error && <p className="alert error">{error}</p>}
+      {error && <p className="alert error">{t(error as "comments.loadError" | "comments.postError")}</p>}
 
       {loading ? (
-        <p className="empty loading">loading comments</p>
+        <p className="empty loading">{t("comments.loading")}</p>
       ) : comments.length === 0 ? (
-        <p className="empty">No comments yet.</p>
+        <p className="empty">{t("comments.none")}</p>
       ) : (
         <div>
           {comments.map((c) => (

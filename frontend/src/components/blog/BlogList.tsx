@@ -4,21 +4,25 @@ import type { PostSummary } from '../../types/post';
 import PostAPI from '../../api/posts.api';
 import { useAuth } from '../../context/AuthContext';
 import PostRow from './PostRow';
+import { useI18n } from '../../i18n';
 
 function BlogList() {
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
   const [error, setError] = useState('');
   const [params, setParams] = useSearchParams();
   const { isLoggedIn, role } = useAuth();
+  const { t } = useI18n();
 
   const q = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
 
+  // The admin also sees unpublished posts (marked "draft")
+  const isAdmin = isLoggedIn && role === 'admin';
   useEffect(() => {
-    PostAPI.getAllPosts()
+    PostAPI.getAllPosts(isAdmin)
       .then(setPosts)
-      .catch(() => { setPosts([]); setError('Error loading posts.'); });
-  }, []);
+      .catch(() => { setPosts([]); setError('blog.loadError'); });
+  }, [isAdmin]);
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -51,38 +55,38 @@ function BlogList() {
       <div className="page-head">
         <div>
           <div className="eyebrow"><span className="p">$</span> <span className="c">ls -lt ~/blog</span></div>
-          <h1>Blog</h1>
-          <p>Write-ups on hardware hacking, firmware analysis and embedded Linux.</p>
+          <h1>{t('blog.title')}</h1>
+          <p>{t('blog.lead')}{t('blog.langNote') && <> <span className="muted">{t('blog.langNote')}</span></>}</p>
         </div>
         <div className="tools">
-          <label className="visually-hidden" htmlFor="filter">Filter posts</label>
+          <label className="visually-hidden" htmlFor="filter">{t('blog.filter')}</label>
           <input
             id="filter"
             className="input"
             type="search"
-            placeholder="filter posts…"
+            placeholder={t('blog.filterPlaceholder')}
             value={q}
             onChange={(e) => setParam('q', e.target.value)}
           />
           {tag && <button type="button" className="btn" onClick={() => setParam('tag', '')}>#{tag} ×</button>}
-          {isLoggedIn && role === 'admin' && <Link to="/blog/new" className="btn primary">new post</Link>}
+          {isLoggedIn && role === 'admin' && <Link to="/blog/new" className="btn primary">{t('nav.newPost')}</Link>}
         </div>
       </div>
 
       {posts === null ? (
-        <p className="empty loading">loading posts</p>
+        <p className="empty loading">{t('blog.loading')}</p>
       ) : error ? (
-        <p className="alert error">{error}</p>
+        <p className="alert error">{t('blog.loadError')}</p>
       ) : filtered.length === 0 ? (
         <p className="empty">
-          {posts.length === 0 ? 'No posts yet.' : 'No posts match this filter.'}
+          {posts.length === 0 ? t('blog.none') : t('blog.noMatch')}
         </p>
       ) : (
         byYear.map(([year, items]) => (
           <section key={year} className="year-group">
             <div className="section-head">
               <h2>{year}</h2><span className="rule" />
-              <span className="count">{items.length} {items.length === 1 ? 'post' : 'posts'}</span>
+              <span className="count">{items.length} {items.length === 1 ? t('blog.post') : t('blog.posts')}</span>
             </div>
             <div className="posts">
               {items.map(({ p, index }) => (
