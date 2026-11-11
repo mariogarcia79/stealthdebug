@@ -195,7 +195,7 @@ install -m 644 ./systemd/podman.service.d/quiet.conf \
 systemctl --user daemon-reload
 echo "Copied systemd service files and reloaded user daemon."
 
-# LogLevelMax only applies to processes started after it is set: restart
+# The log level only applies to a newly started Podman API process: restart
 # Podman's API service if it is running (its socket starts it again on the
 # next request; containers are not affected).
 systemctl --user try-restart podman.service || true
