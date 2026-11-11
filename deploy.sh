@@ -35,7 +35,8 @@ fi
 BACKUP_DIR="/home/deploy/.config/containers.backup.$(date +%s)"
 
 # --- Record current state for rollback --------------------------------------
-PREV_COMMIT=$(git rev-parse HEAD)
+# (DEPLOY_PREV_COMMIT: set when this script re-runs itself after checkout)
+PREV_COMMIT=${DEPLOY_PREV_COMMIT:-$(git rev-parse HEAD)}
 PREV_BACKEND_ID=$(podman image inspect --format '{{.Id}}' localhost/backend:latest 2>/dev/null || true)
 PREV_FRONTEND_ID=$(podman image inspect --format '{{.Id}}' localhost/frontend:latest 2>/dev/null || true)
 
@@ -80,6 +81,18 @@ git fetch --quiet origin main
 TARGET="${DEPLOY_SHA:-origin/main}"
 git checkout -q --detach "$TARGET"
 echo "Checked out $(git rev-parse --short HEAD) (previous: ${PREV_COMMIT:0:7})."
+
+# git checkout writes deploy.sh as a new file; this process keeps running the
+# version it started with (the previous commit's). If the script changed,
+# continue with the new version so its changes apply in this deploy, not the
+# next one. Nothing has been modified yet; the new run makes its own backup.
+if [ -z "${DEPLOY_REEXEC:-}" ] && ! git diff --quiet "$PREV_COMMIT" HEAD -- deploy.sh; then
+  echo "deploy.sh changed in this commit: continuing with the new version."
+  trap - ERR
+  rm -rf "$BACKUP_DIR"
+  export DEPLOY_REEXEC=1 DEPLOY_PREV_COMMIT="$PREV_COMMIT"
+  exec "$0" "$@"
+fi
 
 # Clean previous config (volumes are stored separately and are NOT affected)
 rm -rf /home/deploy/.config/containers
@@ -182,8 +195,9 @@ install -m 644 ./systemd/podman.service.d/quiet.conf \
 systemctl --user daemon-reload
 echo "Copied systemd service files and reloaded user daemon."
 
-# Apply the drop-in to Podman's API service if it is running (it's restarted
-# by its socket on the next request; containers are not affected).
+# LogLevelMax only applies to processes started after it is set: restart
+# Podman's API service if it is running (its socket starts it again on the
+# next request; containers are not affected).
 systemctl --user try-restart podman.service || true
 
 # Restart application pod (Mongo is in this pod but its volume persists)
@@ -197,6 +211,37 @@ echo "Launched observability pod."
 # Verify
 systemctl --user status webpage-pod.service      --no-pager
 systemctl --user status observability-pod.service --no-pager
+
+# The pod unit stays "active" even when one of its containers exits (e.g.
+# nginx refusing a bad config), so check each application container, and
+# that it is still running a few seconds later. Failing here rolls back.
+APP_SERVICES="mongo backend frontend nginx"
+all_active() {
+  local svc
+  for svc in $APP_SERVICES; do
+    systemctl --user is-active --quiet "$svc.service" || return 1
+  done
+}
+verify_running() {
+  local svc
+  for _ in $(seq 1 30); do
+    if all_active; then
+      sleep 5
+      if all_active; then
+        echo "Verified: $APP_SERVICES running."
+        return 0
+      fi
+    fi
+    sleep 2
+  done
+  echo "ERROR: application containers not running:"
+  for svc in $APP_SERVICES; do
+    echo "  $svc: $(systemctl --user is-active "$svc.service" || true)"
+  done
+  journalctl --user -u nginx.service -n 5 --no-pager || true
+  return 1
+}
+verify_running
 
 # --- Success: clean up -------------------------------------------------------
 trap - ERR

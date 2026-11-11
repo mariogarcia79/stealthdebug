@@ -432,6 +432,8 @@ Both Dockerfiles already upgrade OS packages in the final stage (`apt-get upgrad
 3. If `deploy.sh` failed: as `deploy` on the VPS (see 3i), check `journalctl --user -xe` and `systemctl --user status webpage-pod.service`
    - `another deployment is still running` (exit code 75): a previous deploy held `~/.deploy.lock` for more than 10 minutes. Check that no `deploy.sh` is still running (`pgrep -af deploy.sh`) and re-run the workflow.
    - `Cloudflare IP fetch failed and no previous list exists`: only possible on a first deploy while cloudflare.com is unreachable; re-run later.
+   - `application containers not running` followed by a list: after restarting, one of mongo/backend/frontend/nginx did not stay up (the pod unit alone stays "active" even when a container dies). The log lines printed below it usually say why, e.g. `nginx: [emerg] ...` for a config error. The previous version has been restored; fix the cause and push again.
+   - `deploy.sh changed in this commit: continuing with the new version.` is not an error: `git checkout` replaces deploy.sh on disk while the old version is running, so the script re-runs itself to apply its own changes in the same deploy.
 4. The rollback function should have already restored the previous state automatically
 5. If the automatic rollback also failed: see section 6, manual rollback
 
