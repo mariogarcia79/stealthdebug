@@ -1,101 +1,90 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import CommentAPI from "../../api/comments.api";
 import BlogComment from "./BlogComment";
-import { Comment } from "../../types/comment";
+import type { Comment } from "../../types/comment";
 
-interface Props {
-  postId: string;
-}
+const COMMENT_MAX = 2000;
 
-function BlogCommentList({ postId }: Props) {
+function BlogCommentList({ postId }: { postId: string }) {
   const { isLoggedIn } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const COMMENT_MAX = 2000;
   const [content, setContent] = useState("");
-  const [commentCount, setCommentCount] = useState(0);
-
   const [posting, setPosting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setLoading(true);
     CommentAPI.getCommentsByPost(postId)
-      .then((data) => setComments(data))
+      .then(setComments)
+      .catch(() => setError("Could not load comments."))
       .finally(() => setLoading(false));
   }, [postId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
-
     setPosting(true);
+    setError("");
     try {
-      const newComment = await CommentAPI.createComment(postId, content.trim());
-
-      setComments((prev) => [newComment, ...prev]);
+      const created = await CommentAPI.createComment(postId, content.trim());
+      setComments((prev) => [created, ...prev]);
       setContent("");
-      setCommentCount(0);
-    } catch (err) {
-      alert("Failed to post comment");
+    } catch {
+      setError("Failed to post the comment.");
+    } finally {
+      setPosting(false);
     }
-    setPosting(false);
   };
 
   return (
-    <div className="page-content" style={{ maxWidth: "900px", width: "100%" }}>
-      <h1 className="title large left" style={{ marginBottom: "1rem" }}># Comments</h1>
+    <section className="comments" id="comments">
+      <div className="section-head">
+        <h2>comments</h2><span className="rule" />
+        <span className="count">{loading ? "" : comments.length}</span>
+      </div>
 
       {isLoggedIn ? (
-        <form onSubmit={handleSubmit} className="page-body">
+        <form onSubmit={handleSubmit} className="panel composer">
+          <label className="visually-hidden" htmlFor="comment">Comment</label>
           <textarea
-            placeholder="Write a comment..."
+            id="comment"
+            className="input prose-input"
+            placeholder="Write a comment…"
             value={content}
             maxLength={COMMENT_MAX}
-            onChange={(e) => {
-              const value = e.target.value;
-              setContent(value);
-              setCommentCount(value.length);
-            }}
+            onChange={(e) => setContent(e.target.value)}
             rows={4}
-            className="textarea comment"
           />
-
-          {/* CHARACTER COUNTER */}
-          <div className="char-counter">
-            {commentCount} / {COMMENT_MAX}
+          <div className="row">
+            <span>{content.length} / {COMMENT_MAX}</span>
+            <button className="btn sm primary" disabled={posting || !content.trim()}>
+              {posting ? "posting…" : "post comment"}
+            </button>
           </div>
-
-          <button className="button" disabled={posting || !content.trim()}>
-            {posting ? "Posting..." : "Add Comment"}
-          </button>
         </form>
       ) : (
-        <p className="post-summary">Log in to write a comment.</p>
+        <p className="panel composer-login">
+          <Link to="/login">Log in</Link> or <Link to="/signup">sign up</Link> to join the discussion.
+        </p>
       )}
 
+      {error && <p className="alert error">{error}</p>}
+
       {loading ? (
-        <p>Loading comments...</p>
+        <p className="empty loading">loading comments</p>
       ) : comments.length === 0 ? (
-        <p style={{ marginTop: "1rem" }} className="error block">No comments yet</p>
+        <p className="empty">No comments yet.</p>
       ) : (
-        <div className="comments-list" style={{ marginBottom: "5rem" }}>
+        <div>
           {comments.map((c) => (
-            <div
-              key={c._id}
-              className="comment-wrapper"
-            >
-              <BlogComment 
-                postId={postId} 
-                comment={c} 
-                setComments={setComments}
-              />
-            </div>
+            <BlogComment key={c._id} postId={postId} comment={c} setComments={setComments} />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

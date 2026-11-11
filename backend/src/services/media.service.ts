@@ -253,7 +253,10 @@ class MediaService {
 
   // Size data for the images a post references, keyed by filename.
   static async imagesForContent(content: string): Promise<Record<string, PostImageInfo>> {
-    const names = extractUploadFilenames(content);
+    return MediaService.imagesByFilename(extractUploadFilenames(content));
+  }
+
+  static async imagesByFilename(names: string[]): Promise<Record<string, PostImageInfo>> {
     if (!names.length) return {};
     const docs = await MediaModel.find({ filename: { $in: names } }).lean();
     const out: Record<string, PostImageInfo> = {};

@@ -657,6 +657,13 @@ It backs up the volume to `~/uploads-backups/`, changes only file ownership and 
 
 `/blog/new` and `/blog/edit/:id` (admin): Markdown editor with live preview, toolbar, `Ctrl+S` to save, `Ctrl+B/I/E/K` for bold/italic/code/link. Paste or drop an image into the text to upload it at the cursor. Unsaved changes are kept as a draft in that browser and offered again on the next visit.
 
+Post fields besides the Markdown:
+
+- **Tags** (up to 8): lowercase, spaces become `-` (`Embedded Linux` → `embedded-linux`). Shown on the post and in lists; clicking one filters the blog (`/blog?tag=uart`).
+- **Series**: posts with exactly the same series name form a series, ordered by publication date ("part 1/2"). The post page lists the other parts.
+
+Markdown extras: `> [!NOTE]`, `> [!TIP]`, `> [!WARNING]` and `> [!CAUTION]` render as callouts; fenced code blocks get a language label and a copy button; `##`/`###` headings appear in the post's contents sidebar. Older posts have no tags or series until you edit them.
+
 ### Backups
 
 `scripts/backup-mongo.sh` covers the database (including `media`), **not** the image files. Back up the volume separately:

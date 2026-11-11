@@ -99,6 +99,8 @@ class PostService {
     if (partial.summary !== undefined) updateData.summary = sanitizeText(partial.summary);
     if (partial.content !== undefined) updateData.content = sanitizeMarkdown(partial.content);
     if (partial.published !== undefined) updateData.published = partial.published;
+    if (partial.tags !== undefined) updateData.tags = partial.tags;
+    if (partial.series !== undefined) updateData.series = partial.series;
 
     try {
       return await PostModel.findByIdAndUpdate(id, updateData, { new: true });
@@ -120,7 +122,9 @@ class PostService {
         title: sanitizeText(data.title),
         summary: sanitizeText(data.summary),
         content: sanitizeMarkdown(data.content),
-        published: data.published ?? true
+        published: data.published ?? true,
+        tags: data.tags ?? [],
+        series: data.series ?? ""
       });
 
       return await newPost.save();
@@ -128,6 +132,28 @@ class PostService {
       console.error("Error: createPost:", err);
       return null;
     }
+  }
+
+  // Published posts in the same series, oldest first (part 1, 2, ...).
+  static async getSeries(series: string): Promise<{ _id: Types.ObjectId; title: string }[]> {
+    if (!series) return [];
+    return PostModel.find({ series, published: true })
+      .sort({ createdAt: 1 })
+      .select("_id title")
+      .limit(100)
+      .lean();
+  }
+
+  // Previous (older) and next (newer) published post.
+  static async getNeighbours(createdAt: Date): Promise<{
+    prev: { _id: Types.ObjectId; title: string } | null;
+    next: { _id: Types.ObjectId; title: string } | null;
+  }> {
+    const [prev, next] = await Promise.all([
+      PostModel.findOne({ published: true, createdAt: { $lt: createdAt } }).sort({ createdAt: -1 }).select("_id title").lean(),
+      PostModel.findOne({ published: true, createdAt: { $gt: createdAt } }).sort({ createdAt: 1 }).select("_id title").lean(),
+    ]);
+    return { prev, next };
   }
 
   static async deletePostById(id: string): Promise<boolean> {

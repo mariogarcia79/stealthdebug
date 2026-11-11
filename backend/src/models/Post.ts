@@ -10,7 +10,10 @@ const postSchema = new Schema<IPostDocument>(
     title:      { type: String,   required: true },
     summary:    { type: String,   required: true },
     content:    { type: String,   required: true },
-    published:  { type: Boolean,  required: true }
+    published:  { type: Boolean,  required: true },
+    // Added later: older documents lack them and get these defaults on read.
+    tags:       { type: [String], default: [] },
+    series:     { type: String,   default: "" }
   },
   { 
     timestamps: true

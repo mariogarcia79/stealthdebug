@@ -27,45 +27,45 @@ import type { Media, PostImages } from '../../types/media';
 const editorTheme = EditorView.theme(
   {
     '&': {
-      backgroundColor: 'var(--color-dark-0)',
-      color: 'var(--color-text-0)',
-      border: '1px solid var(--color-subtle-general)',
+      backgroundColor: 'var(--bg)',
+      color: 'var(--text)',
+      border: '1px solid var(--line)', borderRadius: 'var(--radius)',
       fontSize: '0.95rem',
       height: '100%',
     },
-    '&.cm-focused': { outline: 'none', borderColor: 'var(--color-text-0)' },
-    '.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.55' },
-    '.cm-content': { caretColor: 'var(--color-accent-general)', padding: '0.75rem 0' },
-    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--color-accent-general)' },
+    '&.cm-focused': { outline: 'none', borderColor: 'var(--accent)' },
+    '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
+    '.cm-content': { caretColor: 'var(--accent)', padding: '0.75rem 0' },
+    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
       backgroundColor: 'rgba(71, 235, 180, 0.22) !important',
     },
     '.cm-gutters': {
-      backgroundColor: 'var(--color-dark-1)',
-      color: 'var(--color-subtle-general)',
+      backgroundColor: 'var(--surface)',
+      color: 'var(--line-hi)',
       border: 'none',
     },
     '.cm-activeLine': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--color-text-1)' },
+    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--meta)' },
   },
   { dark: true }
 );
 
 const markdownHighlight = HighlightStyle.define([
-  { tag: t.heading, color: 'var(--color-accent-general)', fontWeight: 'bold' },
+  { tag: t.heading, color: 'var(--accent)', fontWeight: 'bold' },
   { tag: t.strong, fontWeight: 'bold' },
   { tag: t.emphasis, fontStyle: 'italic' },
   { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: [t.link, t.url], color: 'var(--color-accent-note)' },
+  { tag: [t.link, t.url], color: 'var(--accent)' },
   { tag: t.monospace, color: '#f0c674' },
-  { tag: t.quote, color: 'var(--color-text-1)', fontStyle: 'italic' },
-  { tag: [t.processingInstruction, t.contentSeparator, t.meta], color: 'var(--color-subtle-general)' },
-  { tag: t.list, color: 'var(--color-accent-general)' },
+  { tag: t.quote, color: 'var(--meta)', fontStyle: 'italic' },
+  { tag: [t.processingInstruction, t.contentSeparator, t.meta], color: 'var(--line-hi)' },
+  { tag: t.list, color: 'var(--accent)' },
   // code inside fenced blocks (language-data)
   { tag: t.keyword, color: '#c792ea' },
   { tag: [t.string, t.special(t.string)], color: '#c3e88d' },
   { tag: [t.number, t.bool, t.null], color: '#f78c6c' },
-  { tag: t.comment, color: 'var(--color-text-1)', fontStyle: 'italic' },
+  { tag: t.comment, color: 'var(--meta)', fontStyle: 'italic' },
   { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#82aaff' },
   { tag: [t.typeName, t.className], color: '#ffcb6b' },
 ]);
@@ -157,7 +157,7 @@ function imagesFromLibrary(items: Media[]): PostImages {
 // ---------------------------------------------------------------------------
 // Drafts (per post, in this browser only)
 // ---------------------------------------------------------------------------
-interface Snapshot { title: string; summary: string; content: string }
+interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string }
 interface Draft extends Snapshot { savedAt: number }
 
 const draftKey = (id?: string) => `stealthdebug:draft:${id ?? 'new'}`;
@@ -179,7 +179,49 @@ function clearDraft(id?: string) {
   try { localStorage.removeItem(draftKey(id)); } catch { /* ignore */ }
 }
 const same = (a: Snapshot, b: Snapshot) =>
-  a.title === b.title && a.summary === b.summary && a.content === b.content;
+  a.title === b.title && a.summary === b.summary && a.content === b.content &&
+  (a.tags ?? []).join('\n') === (b.tags ?? []).join('\n') && (a.series ?? '') === (b.series ?? '');
+
+const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '' };
+
+// Same rules as the backend (normalizeTags): lowercase, no "#", spaces -> "-"
+function normalizeTag(raw: string): string {
+  return raw.trim().toLowerCase().replace(/^#+/, '').replace(/\s+/g, '-').replace(/[^a-z0-9+.-]/g, '').slice(0, 30);
+}
+
+function TagInput({ value, onChange, disabled }: { value: string[]; onChange: (t: string[]) => void; disabled?: boolean }) {
+  const [text, setText] = useState('');
+  const add = (raw: string) => {
+    const t = normalizeTag(raw);
+    if (t && !value.includes(t) && value.length < 8) onChange([...value, t]);
+    setText('');
+  };
+  return (
+    <div className="input tag-input" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}>
+      {value.map((t) => (
+        <span key={t} className="tag accent">
+          #{t}
+          <button type="button" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>×</button>
+        </span>
+      ))}
+      <input
+        id="post-tags"
+        value={text}
+        disabled={disabled || value.length >= 8}
+        placeholder={value.length ? '' : 'firmware, uart… (enter to add)'}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v.endsWith(',') && v.trim() !== ',') add(v.slice(0, -1)); else setText(v);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) add(text); }
+          else if (e.key === 'Backspace' && !text && value.length) onChange(value.slice(0, -1));
+        }}
+        onBlur={() => text.trim() && add(text)}
+      />
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 
@@ -194,7 +236,9 @@ function BlogEditor() {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
-  const [saved, setSaved] = useState<Snapshot>({ title: '', summary: '', content: '' });
+  const [tags, setTags] = useState<string[]>([]);
+  const [series, setSeries] = useState('');
+  const [saved, setSaved] = useState<Snapshot>(EMPTY);
   const [loaded, setLoaded] = useState(!isEditing);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState('');
@@ -208,7 +252,7 @@ function BlogEditor() {
   const [postImages, setPostImages] = useState<PostImages>({});
 
   const cm = useRef<ReactCodeMirrorRef>(null);
-  const current: Snapshot = { title, summary, content };
+  const current: Snapshot = { title, summary, content, tags, series };
   const dirty = loaded && !same(current, saved);
   const contentTooLong = content.length > MAX_CONTENT_LENGTH;
 
@@ -222,6 +266,7 @@ function BlogEditor() {
     const start = (s: Snapshot) => {
       if (cancelled) return;
       setTitle(s.title); setSummary(s.summary); setContent(s.content);
+      setTags(s.tags); setSeries(s.series);
       setSaved(s); setLoaded(true);
       const draft = readDraft(id);
       if (draft && !same(draft, s)) setDraftOffer(draft);
@@ -231,11 +276,11 @@ function BlogEditor() {
       PostAPI.getPostById(id)
         .then((post) => {
           setPostImages(post.images ?? {});
-          start({ title: post.title, summary: post.summary, content: post.content });
+          start({ title: post.title, summary: post.summary, content: post.content, tags: post.tags ?? [], series: post.series?.name ?? '' });
         })
         .catch(() => !cancelled && setError('Failed to load post'));
     } else {
-      start({ title: '', summary: '', content: '' });
+      start(EMPTY);
     }
     return () => { cancelled = true; };
   }, [id]);
@@ -248,7 +293,7 @@ function BlogEditor() {
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, summary, content, loaded, dirty, id]);
+  }, [title, summary, content, tags, series, loaded, dirty, id]);
 
   // Warn before closing the tab with unsaved changes.
   useEffect(() => {
@@ -285,14 +330,14 @@ function BlogEditor() {
 
     setSaveState('saving');
     setError('');
-    const snapshot = { title, summary, content };
+    const snapshot: Snapshot = { title, summary, content, tags, series: series.trim() };
     try {
       if (isEditing && id) {
         await PostAPI.updatePost(id, snapshot);
         setSaved(snapshot);
         clearDraft(id);
       } else {
-        const post = await PostAPI.createPost(title, summary, content);
+        const post = await PostAPI.createPost(snapshot);
         clearDraft(undefined);
         setSaved(snapshot);
         navigate(`/blog/edit/${post._id}`, { replace: true });
@@ -303,7 +348,7 @@ function BlogEditor() {
       setError(err?.message || 'Failed to save.');
       setSaveState('error');
     }
-  }, [saveState, title, summary, content, isEditing, id, navigate, loadMedia]);
+  }, [saveState, title, summary, content, tags, series, isEditing, id, navigate, loadMedia]);
 
   // Ctrl/Cmd+S anywhere on the page
   const saveRef = useRef(save);
@@ -404,60 +449,66 @@ function BlogEditor() {
     : isEditing ? 'No changes' : '';
 
   return (
-    <div className="page-container">
-      <div className="post-editor">
+    <div className="wrap post-editor">
         <div className="post-editor-header">
-          <Link to={isEditing ? `/blog/${id}` : '/blog'} className="link">$ cd ../</Link>
-          <h1 className="title">{isEditing ? 'Edit post' : 'New post'}</h1>
+          <div>
+            <div className="eyebrow">
+              <Link to={isEditing ? `/blog/${id}` : '/blog'} className="link">{isEditing ? '~/blog/post' : '~/blog'}</Link>
+              <span> / {isEditing ? 'edit' : 'new'}</span>
+            </div>
+          </div>
+          <h1>{isEditing ? 'Edit post' : 'New post'}</h1>
           <span className={`editor-status ${dirty ? 'dirty' : ''}`}>{status}</span>
           {isEditing && (
-            <Link to={`/blog/${id}`} className="button compact" target="_blank" rel="noopener noreferrer">
-              View
-            </Link>
+            <Link to={`/blog/${id}`} className="btn sm" target="_blank" rel="noopener noreferrer">view ↗</Link>
           )}
           <button
-            className="button compact"
+            className="btn sm primary"
             onClick={save}
             disabled={!loaded || saveState === 'saving' || contentTooLong || (isEditing && !dirty)}
             title="Ctrl+S"
           >
-            {isEditing ? 'Save' : 'Publish'}
+            {isEditing ? 'save' : 'publish'}
           </button>
         </div>
 
-        {error && <div className="error block">{error}</div>}
+        {error && <div className="alert error">{error}</div>}
 
         {draftOffer && (
-          <div className="draft-banner">
-            You have an unsaved local draft from {new Date(draftOffer.savedAt).toLocaleString()}.
-            <button className="button compact" onClick={() => {
+          <div className="panel draft-banner">
+            <span>Unsaved local draft from {new Date(draftOffer.savedAt).toLocaleString()}.</span>
+            <button className="btn sm" onClick={() => {
               setTitle(draftOffer.title); setSummary(draftOffer.summary); setContent(draftOffer.content);
+              setTags(draftOffer.tags ?? []); setSeries(draftOffer.series ?? '');
               setDraftOffer(null);
-            }}>Restore</button>
-            <button className="button compact" onClick={() => { clearDraft(id); setDraftOffer(null); }}>Discard</button>
+            }}>restore</button>
+            <button className="btn sm ghost" onClick={() => { clearDraft(id); setDraftOffer(null); }}>discard</button>
           </div>
         )}
 
-        <input
-          type="text"
-          placeholder="Title"
-          value={title}
-          maxLength={MAX_TITLE_LENGTH}
-          onChange={(e) => setTitle(e.target.value)}
-          className="input wide"
-          disabled={!loaded}
-        />
-        <div className="char-counter">{title.length} / {MAX_TITLE_LENGTH}</div>
-
-        <textarea
-          placeholder="Summary (shown in the post list and under the title)"
-          value={summary}
-          maxLength={MAX_SUMMARY_LENGTH}
-          onChange={(e) => setSummary(e.target.value)}
-          className="textarea post-summary"
-          disabled={!loaded}
-        />
-        <div className="char-counter">{summary.length} / {MAX_SUMMARY_LENGTH}</div>
+        <div className="editor-meta">
+          <div className="field wide">
+            <label htmlFor="post-title">title</label>
+            <input id="post-title" type="text" value={title} maxLength={MAX_TITLE_LENGTH}
+              onChange={(e) => setTitle(e.target.value)} className="input" disabled={!loaded} />
+            <span className="char-counter">{title.length} / {MAX_TITLE_LENGTH}</span>
+          </div>
+          <div className="field wide">
+            <label htmlFor="post-summary">summary <span className="muted">· shown in the post list and under the title</span></label>
+            <textarea id="post-summary" value={summary} maxLength={MAX_SUMMARY_LENGTH} rows={3}
+              onChange={(e) => setSummary(e.target.value)} className="input prose-input" disabled={!loaded} />
+            <span className="char-counter">{summary.length} / {MAX_SUMMARY_LENGTH}</span>
+          </div>
+          <div className="field">
+            <label htmlFor="post-tags">tags <span className="muted">· up to 8</span></label>
+            <TagInput value={tags} onChange={setTags} disabled={!loaded} />
+          </div>
+          <div className="field">
+            <label htmlFor="post-series">series <span className="muted">· same name = same series</span></label>
+            <input id="post-series" type="text" value={series} maxLength={80} placeholder="e.g. ZTE H108N"
+              onChange={(e) => setSeries(e.target.value)} className="input" disabled={!loaded} />
+          </div>
+        </div>
 
         <div className="post-editor-panes">
           <section className="post-editor-pane">
@@ -508,13 +559,19 @@ function BlogEditor() {
             </div>
             <div className="editor-side">
               {tab === 'preview' ? (
-                <div className="post-content preview">
-                  <h1 className="title large left"> # {title || 'Untitled'}</h1>
-                  <div className="post-summary">{summary}</div>
-                  <div className="post-body">
-                    <MarkdownRenderer content={content} images={previewImages} />
+                <>
+                  <div className="post-head">
+                    <h1>{title || 'Untitled'}</h1>
+                    {summary && <p className="lead">{summary}</p>}
+                    {(tags.length > 0 || series.trim()) && (
+                      <div className="post-meta">
+                        {series.trim() && <span className="series">series: {series.trim()}</span>}
+                        {tags.length > 0 && <span className="tags">{tags.map((t) => <span key={t} className="tag">#{t}</span>)}</span>}
+                      </div>
+                    )}
                   </div>
-                </div>
+                  <MarkdownRenderer content={content} images={previewImages} />
+                </>
               ) : (
                 <MediaLibrary
                   items={media}
@@ -529,7 +586,6 @@ function BlogEditor() {
             </div>
           </section>
         </div>
-      </div>
     </div>
   );
 }

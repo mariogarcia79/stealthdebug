@@ -91,17 +91,17 @@ function MediaCard({ item, onInsert, onChanged }: {
       />
 
       <div className="media-actions">
-        <button type="button" className="button compact" onClick={() => onInsert({ ...item, alt })}>Insert</button>
-        <button type="button" className="button compact" onClick={copyUrl}>Copy URL</button>
+        <button type="button" className="btn sm" onClick={() => onInsert({ ...item, alt })}>Insert</button>
+        <button type="button" className="btn sm" onClick={copyUrl}>Copy URL</button>
         {confirmDelete ? (
           <>
-            <button type="button" className="button compact delete" onClick={remove}>Confirm</button>
-            <button type="button" className="button compact" onClick={() => setConfirmDelete(false)}>Cancel</button>
+            <button type="button" className="btn sm danger" onClick={remove}>Confirm</button>
+            <button type="button" className="btn sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
           </>
         ) : (
           <button
             type="button"
-            className="button compact delete"
+            className="btn sm danger"
             disabled={used}
             title={used ? 'Remove it from these posts first:\n' + item.usedIn.map((p) => p.title).join('\n') : 'Delete file'}
             onClick={() => setConfirmDelete(true)}
@@ -165,7 +165,7 @@ function MediaLibrary({ items, loading, error, onInsert, onUploadFiles, onChange
         </label>
       </div>
 
-      {error && <div className="error block">{error}</div>}
+      {error && <div className="alert error">{error}</div>}
       {loading && items.length === 0 && <p className="sidebar-empty">Loading…</p>}
       {!loading && visible.length === 0 && <p className="sidebar-empty">No images{q || onlyUnused ? ' match' : ' yet'}</p>}
 

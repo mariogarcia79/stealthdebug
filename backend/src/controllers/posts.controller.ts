@@ -4,6 +4,8 @@ import { Types } from "mongoose";
 import PostService from "../services/posts.service";
 import MediaService from "../services/media.service";
 import { IPost } from "../types/post";
+import { readingMinutes, normalizeTags, normalizeSeries } from "../utils/postMeta";
+import { extractUploadFilenames, uploadUrl } from "../utils/media";
 
 import { 
   validateInput,
@@ -27,7 +29,26 @@ class PostController {
 
     try {
       const posts = await PostService.getAllPosts({ sorted: true, limit, skip });
-      return res.json(posts);
+
+      // The list needs metadata, not the full markdown: reading time and the
+      // first image of each post (as a responsive thumbnail).
+      const firstImage = posts.map((p) => extractUploadFilenames(p.content)[0]);
+      let images: Awaited<ReturnType<typeof MediaService.imagesByFilename>> = {};
+      try {
+        images = await MediaService.imagesByFilename(firstImage.filter(Boolean) as string[]);
+      } catch (err) {
+        console.error("imagesByFilename failed:", err);
+      }
+
+      return res.json(posts.map((p, i) => {
+        const { content, ...rest } = p.toJSON();
+        const name = firstImage[i];
+        return {
+          ...rest,
+          readingMinutes: readingMinutes(content),
+          cover: name ? { url: uploadUrl(name), ...(images[name] ?? {}) } : null,
+        };
+      }));
     } catch (err) {
       console.error(err);
       return sendError(res, 'UNKNOWN_ERROR');
@@ -54,7 +75,27 @@ class PostController {
       } catch (err) {
         console.error("imagesForContent failed:", err);
       }
-      return res.json({ ...post.toJSON(), images });
+      // Series and neighbours are extras: never fail the post because of them.
+      let series = null;
+      let neighbours = { prev: null, next: null } as Awaited<ReturnType<typeof PostService.getNeighbours>>;
+      try {
+        if (post.series) {
+          const parts = await PostService.getSeries(post.series);
+          const index = parts.findIndex((p) => p._id.equals(post._id));
+          series = { name: post.series, part: index + 1, total: parts.length, posts: parts };
+        }
+        if (post.published) neighbours = await PostService.getNeighbours(post.createdAt);
+      } catch (err) {
+        console.error("post extras failed:", err);
+      }
+
+      return res.json({
+        ...post.toJSON(),
+        images,
+        readingMinutes: readingMinutes(post.content),
+        series,
+        ...neighbours,
+      });
 
     } catch (err) {
       console.error(err);
@@ -64,7 +105,7 @@ class PostController {
 
   static async createPost(req: Request, res: Response): Promise<Response> {
     const _id = req.user?._id;
-    const { title, summary, content } = req.body;
+    const { title, summary, content, tags, series } = req.body;
 
     if (!isObjectId(_id)) {
       return sendError(res, 'UNAUTHORIZED');
@@ -74,12 +115,22 @@ class PostController {
       const cleanTitle   = validateInput(title,   false, MAX_TITLE_LENGTH);
       const cleanSummary = validateInput(summary, false, MAX_SUMMARY_LENGTH);
       const cleanContent = validateInput(content, true,  MAX_CONTENT_LENGTH);
+      let cleanTags: string[];
+      let cleanSeries: string;
+      try {
+        cleanTags = normalizeTags(tags);
+        cleanSeries = normalizeSeries(series);
+      } catch (err) {
+        return sendError(res, 'INVALID_INPUT', (err as Error).message);
+      }
     
       const newPost = await PostService.createPost({
         author: new Types.ObjectId(_id),
         title: cleanTitle,
         summary: cleanSummary,
-        content: cleanContent
+        content: cleanContent,
+        tags: cleanTags,
+        series: cleanSeries
       });
 
       if (!newPost) {
@@ -113,6 +164,12 @@ class PostController {
       }
       if (req.body.content !== undefined) {
         body.content = validateInput(req.body.content, true, MAX_CONTENT_LENGTH);
+      }
+      try {
+        if (req.body.tags !== undefined) body.tags = normalizeTags(req.body.tags);
+        if (req.body.series !== undefined) body.series = normalizeSeries(req.body.series);
+      } catch (err) {
+        return sendError(res, 'INVALID_INPUT', (err as Error).message);
       }
 
       const updatedPost = await PostService.patchPostById(id, body);

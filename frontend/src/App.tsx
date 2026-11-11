@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from "./components/page/Navbar";
 import Home from "./components/page/Home";
 import SignUp from './components/auth/SignUp';
@@ -14,16 +14,21 @@ import UserList from './components/user/UserList';
 import { ProtectedRoute } from './components/page/ProtectedRoute';
 import Footer from './components/page/Footer';
 import NotFound from './components/error/NotFound';
-import MilkshakeRoulette from './components/misc/MilkshakeRoulette';
+
+// New page = start at the top (unless jumping to a #section)
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => { if (!hash) window.scrollTo(0, 0); }, [pathname, hash]);
+  return null;
+}
 
 function App() {
   return (
     <Router>
-      <header>
-        <Navbar />
-      </header>
+      <ScrollToTop />
+      <Navbar />
 
-      <main className="page-container">
+      <main className="site-main">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/signup" element={<SignUp />} />
@@ -34,7 +39,7 @@ function App() {
             path="/blog/new"
             element={
               <ProtectedRoute requiredRole="admin">
-                <Suspense fallback={<p className="sidebar-empty">Loading editor…</p>}>
+                <Suspense fallback={<div className="wrap"><p className="empty loading">loading editor</p></div>}>
                   <BlogEditor />
                 </Suspense>
               </ProtectedRoute>
@@ -45,7 +50,7 @@ function App() {
             path="/blog/edit/:id"
             element={
               <ProtectedRoute requiredRole="admin">
-                <Suspense fallback={<p className="sidebar-empty">Loading editor…</p>}>
+                <Suspense fallback={<div className="wrap"><p className="empty loading">loading editor</p></div>}>
                   <BlogEditor />
                 </Suspense>
               </ProtectedRoute>
@@ -81,21 +86,12 @@ function App() {
             }
           />
 
-          <Route
-            path="masai"
-            element={
-              <ProtectedRoute>
-                <MilkshakeRoulette />
-              </ProtectedRoute>
-            }
-          />
-
           {/* Fallback route for 404 Not Found */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-
-        <Footer />
       </main>
+
+      <Footer />
     </Router>
   );
 }

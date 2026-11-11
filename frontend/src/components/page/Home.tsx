@@ -1,35 +1,103 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PostAPI from '../../api/posts.api';
+import type { PostSummary } from '../../types/post';
 import { useAuth } from '../../context/AuthContext';
-import Banner from './Banner';
+import PostRow from '../blog/PostRow';
+
+// Decorative: the first bytes of a MIPS kernel uImage (magic 27 05 19 56)
+// and a SquashFS root filesystem, as found in router firmware dumps.
+const HEXDUMP: { o: string; h: string; a: string; hi?: boolean }[] = [
+  { o: '00000000', h: '2705 1956 8a1c 4f02 51e2 a9c0 000f 2a40', a: "'..V..O.Q.....*@", hi: true },
+  { o: '00000010', h: '8000 0000 8000 6c10 3d6b 19e7 0505 0203', a: '......l.=k......' },
+  { o: '00000020', h: '4c69 6e75 7820 4b65 726e 656c 2049 6d61', a: 'Linux Kernel Ima' },
+  { o: '00000030', h: '6765 0000 0000 0000 0000 0000 0000 0000', a: 'ge..............' },
+  { o: '00000040', h: '6d00 0080 0000 1000 5d00 0080 0000 4f03', a: 'm.......].....O.' },
+  { o: '00000050', h: '9fb0 9e3c 2a1f 0e44 b2a1 77c0 31d8 e64a', a: '...<*..D..w.1..J' },
+  { o: '00000060', h: 'c21f 6a38 05be 41f9 8d6e 2c03 99a7 5b10', a: '..j8..A..n,...[.' },
+  { o: '00000070', h: '7e4d e0a2 13c9 8b54 0f62 d417 a8e3 6c25', a: '~M.....T.b....l%' },
+];
+
+function Hexdump() {
+  return (
+    <div className="panel hexdump" aria-hidden="true">
+      <div className="panel-bar"><span><span className="dot" />root@lab: ~/zte-h108n</span><span>bash</span></div>
+      <pre>
+        <span className="k">$</span> <span className="a">xxd dump_mtd1_KERNEL.bin | head</span>{'\n'}
+        {HEXDUMP.map((l) => (
+          <span key={l.o}>
+            <span className="o">{l.o}:</span>{' '}
+            {l.hi ? <><span className="h">{l.h.slice(0, 9)}</span>{l.h.slice(9)}</> : l.h}
+            {'  '}<span className="a">{l.a}</span>{'\n'}
+          </span>
+        ))}
+        <span className="o">…</span>{'\n'}
+        <span className="k">$</span> <span className="a">binwalk dump_mtd2_ROOTFS.bin</span>{'\n'}
+        <span className="o">0x0</span>{'       '}<span className="h">Squashfs filesystem</span>, little endian, v4.0, lzma
+      </pre>
+    </div>
+  );
+}
 
 function Home() {
   const { isLoggedIn, role } = useAuth();
+  const [posts, setPosts] = useState<PostSummary[] | null>(null);
+
+  useEffect(() => {
+    PostAPI.getAllPosts().then(setPosts).catch(() => setPosts([]));
+  }, []);
+
+  const latest = posts?.[0];
+  const tags = [...new Set((posts ?? []).flatMap((p) => p.tags))].slice(0, 8);
+  const topics = tags.length ? tags : ['reverse-engineering', 'firmware', 'uart', 'embedded-linux'];
 
   return (
-    <>
-      <div className="page-container">
-        <div className="header">
-          <div className="post-summary">root@localhost:~# cat WELCOME.md</div>
-        </div>
-        <div className="post-content">
-          <h1 className="title large left"># Welcome</h1>
-          <Banner></Banner>
-          <div className="post-body">
-            <br></br>
-            <p>This blog is all about getting into the guts of technology. We’ll explore <strong>reverse engineering embedded systems</strong>, break down firmware, and learn how to bypass software protections. It’s not about shortcuts, but understanding how things really work and how to make them work for you.</p>
-            <br></br>
-            {isLoggedIn && role === 'admin' && (
-              <p>
-                As an admin, you can <Link to="/blog/new" className="link">create new posts</Link> or <Link to="/blog" className="link">manage existing posts</Link>.
-              </p>
-            )}
-            <p>
-              <Link to="/blog" className="link">Start reading the blog →</Link>
-            </p>
+    <div className="wrap">
+      <section className="hero">
+        <div>
+          <div className="eyebrow"><span className="p">$</span> <span className="c">whoami</span> — reverse engineering · firmware · embedded</div>
+          <h1>Getting into the <em>guts</em> of technology.</h1>
+          <p className="lead">
+            Hands-on write-ups on <strong>reverse engineering embedded systems</strong>: opening the
+            hardware, dumping and breaking down firmware, and bypassing software protections.
+            No shortcuts, just how things really work.
+          </p>
+          <div className="ctas">
+            <Link to="/blog" className="btn primary">read the blog →</Link>
+            {latest && <Link to={`/blog/${latest._id}`} className="btn" title={latest.title}>latest post →</Link>}
+          </div>
+          <div className="topics">
+            {topics.map((t) => (
+              <Link key={t} to={tags.length ? `/blog?tag=${encodeURIComponent(t)}` : '/blog'} className="tag accent">#{t}</Link>
+            ))}
           </div>
         </div>
+        <Hexdump />
+      </section>
+
+      {isLoggedIn && role === 'admin' && (
+        <div className="panel admin-strip">
+          <span className="eyebrow"><span className="p">#</span> admin</span>
+          <span className="grow" />
+          <Link to="/blog/new" className="btn sm primary">new post</Link>
+          <Link to="/users" className="btn sm">users</Link>
+        </div>
+      )}
+
+      <div className="section-head">
+        <h2>latest posts</h2><span className="rule" />
+        <Link to="/blog" className="count">{posts ? `${posts.length} posts · all →` : ''}</Link>
       </div>
-    </>
+      {posts === null ? (
+        <p className="empty loading">loading posts</p>
+      ) : posts.length === 0 ? (
+        <p className="empty">No posts yet.</p>
+      ) : (
+        <div className="posts">
+          {posts.slice(0, 3).map((p, i) => <PostRow key={p._id} post={p} index={posts.length - i} />)}
+        </div>
+      )}
+    </div>
   );
 }
 

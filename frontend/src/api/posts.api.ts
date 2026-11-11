@@ -1,8 +1,8 @@
-import { Post } from '../types/post';
+import type { PostDetail, PostInput, PostSummary } from '../types/post';
 import { API_BASE_URL } from '../constants/constants';
 
 class PostAPI {
-  static async getAllPosts(): Promise<Post[]> {
+  static async getAllPosts(): Promise<PostSummary[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/posts`);
       if (!response.ok) {
@@ -20,7 +20,7 @@ class PostAPI {
     }
   }
 
-  static async getPostById(id: string): Promise<Post> {
+  static async getPostById(id: string): Promise<PostDetail> {
     try {
       const response = await fetch(`${API_BASE_URL}/posts/${id}`);
       if (!response.ok) {
@@ -38,7 +38,7 @@ class PostAPI {
     }
   }
 
-  static async createPost(title: string, summary: string, content: string): Promise<Post> {
+  static async createPost(input: PostInput): Promise<{ _id: string }> {
     try {
       const response = await fetch(`${API_BASE_URL}/posts`, {
         method: 'POST',
@@ -46,7 +46,7 @@ class PostAPI {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ title, summary, content }),
+        body: JSON.stringify(input),
       });
       if (!response.ok) {
         let errText = response.statusText;
@@ -63,7 +63,7 @@ class PostAPI {
     }
   }
 
-  static async updatePost(id: string, partial: Partial<Post>): Promise<Post> {
+  static async updatePost(id: string, partial: Partial<PostInput>): Promise<unknown> {
     try {
       const response = await fetch(`${API_BASE_URL}/posts/${id}`, {
         method: 'PATCH',
