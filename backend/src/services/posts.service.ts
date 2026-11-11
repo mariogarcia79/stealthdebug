@@ -60,22 +60,32 @@ class PostService {
     sorted = true,
     filter,
     limit = 50,
-    skip = 0
+    skip = 0,
+    includeDrafts = false
   }: {
     sorted?: boolean;
     filter?: Partial<IPost>;
     limit?: number;
     skip?: number;
+    includeDrafts?: boolean;   // admin only: unpublished posts too
   }): Promise<IPostDocument[]> {
     const mongoFilter = this.buildFilter(filter);
 
-    if (mongoFilter.published == null) mongoFilter.published = true;
+    if (mongoFilter.published == null && !includeDrafts) mongoFilter.published = true;
 
     const sortOrder: { [key: string]: SortOrder } = {
       createdAt: sorted ? "desc" : "asc"
     };
 
     return PostModel.find(mongoFilter).sort(sortOrder).skip(skip).limit(limit);
+  }
+
+  // True if the post exists and can be seen by this requester: published
+  // posts by anyone, unpublished ones only by the admin.
+  static async isVisible(id: string, isAdmin: boolean): Promise<boolean> {
+    if (!isObjectId(id)) return false;
+    const filter = isAdmin ? { _id: id } : { _id: id, published: true };
+    return !!(await PostModel.exists(filter));
   }
 
   static async getPostById(id: string): Promise<IPostDocument | null> {

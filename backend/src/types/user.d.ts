@@ -6,6 +6,8 @@ export interface IUser {
   email: string;
   hash: string;
   role: UserRole;
+  termsAcceptedAt?: Date;   // public sign-up: when the terms of use were accepted
+  termsVersion?: string;    // which version (date) of the terms
   createdAt: Date;
   updatedAt: Date;
 }

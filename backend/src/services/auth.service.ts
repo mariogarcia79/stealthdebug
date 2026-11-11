@@ -31,7 +31,9 @@ class AuthService {
         name: data.name,
         email: data.email,
         hash: data.hash,
-        role: data.role
+        role: data.role,
+        termsAcceptedAt: data.termsAcceptedAt,
+        termsVersion: data.termsVersion
       });
 
       return await newUser.save();

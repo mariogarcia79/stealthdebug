@@ -28,7 +28,9 @@ class PostController {
     const skip  = (page - 1) * limit;
 
     try {
-      const posts = await PostService.getAllPosts({ sorted: true, limit, skip });
+      // ?drafts=1 from the admin also lists unpublished posts
+      const includeDrafts = req.query.drafts === "1" && req.user?.role === "admin";
+      const posts = await PostService.getAllPosts({ sorted: true, limit, skip, includeDrafts });
 
       // The list needs metadata, not the full markdown: reading time and the
       // first image of each post (as a responsive thumbnail).
@@ -63,7 +65,8 @@ class PostController {
 
     try {
       const post = await PostService.getPostById(id);
-      if (!post) {
+      // Unpublished posts don't exist for anyone but the admin
+      if (!post || (!post.published && req.user?.role !== "admin")) {
         return sendError(res, 'POST_NOT_FOUND');
       }
 
@@ -82,6 +85,8 @@ class PostController {
         if (post.series) {
           const parts = await PostService.getSeries(post.series);
           const index = parts.findIndex((p) => p._id.equals(post._id));
+          // A draft isn't counted among the published parts yet: part 0. The
+          // name must still come back, or the editor would clear it on save.
           series = { name: post.series, part: index + 1, total: parts.length, posts: parts };
         }
         if (post.published) neighbours = await PostService.getNeighbours(post.createdAt);
@@ -105,10 +110,13 @@ class PostController {
 
   static async createPost(req: Request, res: Response): Promise<Response> {
     const _id = req.user?._id;
-    const { title, summary, content, tags, series } = req.body;
+    const { title, summary, content, tags, series, published } = req.body;
 
     if (!isObjectId(_id)) {
       return sendError(res, 'UNAUTHORIZED');
+    }
+    if (published !== undefined && typeof published !== "boolean") {
+      return sendError(res, 'INVALID_INPUT', "published must be true or false");
     }
 
     try {
@@ -130,7 +138,8 @@ class PostController {
         summary: cleanSummary,
         content: cleanContent,
         tags: cleanTags,
-        series: cleanSeries
+        series: cleanSeries,
+        published: published ?? true
       });
 
       if (!newPost) {
@@ -164,6 +173,12 @@ class PostController {
       }
       if (req.body.content !== undefined) {
         body.content = validateInput(req.body.content, true, MAX_CONTENT_LENGTH);
+      }
+      if (req.body.published !== undefined) {
+        if (typeof req.body.published !== "boolean") {
+          return sendError(res, 'INVALID_INPUT', "published must be true or false");
+        }
+        body.published = req.body.published;
       }
       try {
         if (req.body.tags !== undefined) body.tags = normalizeTags(req.body.tags);

@@ -19,11 +19,26 @@ if (!process.env.JWT_SECRET) {
 const secret = process.env.JWT_SECRET;
 
 
+// Version (effective date) of the terms of use accepted at sign-up. Bump it
+// together with frontend/src/content/legal/*/terms.md when the terms change.
+export const TERMS_VERSION = "2026-11-11";
+
+// Never send the password hash back to the client.
+function publicUser(u: { _id: unknown; name: string; email: string; role: string; createdAt?: Date }) {
+  return { _id: u._id, name: u.name, email: u.email, role: u.role, createdAt: u.createdAt };
+}
+
 class AuthController {
 
   static async signUp(req: Request, res: Response): Promise<Response> {
-    const { name, email, password } = req.body;
-    
+    const { name, email, password, acceptTerms } = req.body;
+
+    // Public sign-up requires accepting the terms of use (and confirming the
+    // minimum age, 14 in Spain); the acceptance date is kept as proof.
+    if (acceptTerms !== true) {
+      return res.status(400).json({ error: "You must accept the terms of use and the privacy policy" });
+    }
+
     try {
       const cleanName = validateName(name);
       const cleanEmail = validateEmail(email);
@@ -33,7 +48,9 @@ class AuthController {
       const newUser = await AuthService.signUp({
         name: cleanName,
         email: cleanEmail,
-        hash: hashedPassword
+        hash: hashedPassword,
+        termsAcceptedAt: new Date(),
+        termsVersion: TERMS_VERSION
       });
 
       if (!newUser) {
@@ -42,7 +59,7 @@ class AuthController {
 
       return res
         .status(201)
-        .json(newUser);
+        .json(publicUser(newUser));
 
     } catch (err: unknown) {
       if (err instanceof Error)
@@ -72,7 +89,7 @@ class AuthController {
 
       return res
         .status(201)
-        .json(newUser);
+        .json(publicUser(newUser));
 
     } catch (err: unknown) {
       if (err instanceof Error)
@@ -84,9 +101,21 @@ class AuthController {
   static async logIn(req: Request, res: Response): Promise<Response> {
     const { name, password } = req.body;
     
+    // Login only checks the password against the stored hash. The strength
+    // rules are for choosing a password (sign-up, change); applying them here
+    // turned a wrong password into a 500 and revealed the rules.
+    if (typeof password !== "string" || password.length === 0 || password.length > 256) {
+      return sendError(res, 'INVALID_CREDENTIALS');
+    }
+    let cleanName: string;
     try {
-      const cleanName = validateName(name);
-      const cleanPassword = validatePassword(password);
+      cleanName = validateName(name);
+    } catch {
+      return sendError(res, 'INVALID_CREDENTIALS');
+    }
+
+    try {
+      const cleanPassword = password;
 
       const user = await UserService.getUserByName(cleanName);
 

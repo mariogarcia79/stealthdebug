@@ -51,6 +51,28 @@ export const authenticate = async (
   }
 };
 
+// For public routes that show more to a logged-in user (the admin sees
+// unpublished posts): sets req.user when the session cookie is valid, and
+// otherwise just continues as an anonymous request. Never rejects.
+export const optionalAuth = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) => {
+  const token = req.cookies?.jwt;
+  if (!token || isTokenBlacklisted(token)) return next();
+  try {
+    const decoded = jwt.verify(token, secret) as { _id: string };
+    const user = await UserService.getUserById(decoded._id);
+    if (user) {
+      req.user = { _id: user.id.toString(), role: user.role as "admin" | "user", email: user.email };
+    }
+  } catch {
+    /* invalid or expired token: anonymous */
+  }
+  next();
+};
+
 export const checkRole = (...allowedRoles: ("admin" | "user")[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

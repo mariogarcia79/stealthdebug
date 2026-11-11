@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Types } from "mongoose";
 
 import CommentService from "../services/comments.service";
+import PostService from "../services/posts.service";
 import { IComment } from "../types/comment";
 import { MAX_COMMENT_LENGTH } from "../config/validation";
 
@@ -26,6 +27,10 @@ class CommentController {
     const skip  = (page - 1) * limit;
 
     try {
+      // Comments of an unpublished (or missing) post are hidden like the post
+      if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) {
+        return sendError(res, 'POST_NOT_FOUND');
+      }
       const comments = await CommentService.getAllComments({
         sorted: true,
         filter: { post: new Types.ObjectId(postId) },
@@ -80,6 +85,10 @@ class CommentController {
     }
 
     try {
+      // Only published posts (or any post, for the admin) accept comments
+      if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) {
+        return sendError(res, 'POST_NOT_FOUND');
+      }
       const cleanContent = validateInput(content, false, MAX_COMMENT_LENGTH);
 
       const newComment = await CommentService.createComment({

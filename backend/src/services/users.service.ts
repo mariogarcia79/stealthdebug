@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { FilterQuery, SortOrder } from "mongoose";
 import UserModel, { IUserDocument } from "../models/User";
+import CommentModel from "../models/Comment";
 import { IUser } from "../types/user";
 
 import {
@@ -144,6 +145,10 @@ class UserService {
     if (!isObjectId(id)) return false;
     
     try {
+      // Right to erasure: the account and everything the user wrote go
+      // together (comments are deleted, not just hidden or anonymised).
+      if (!(await UserModel.exists({ _id: id }))) return false;
+      await CommentModel.deleteMany({ author: id });
       const result = await UserModel.deleteOne({ _id: id });
       return result.deletedCount === 1;
     } catch (err) {
