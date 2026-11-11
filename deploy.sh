@@ -173,8 +173,18 @@ chmod 600 /home/deploy/.config/containers/systemd/*.container
 chmod 600 /home/deploy/.config/containers/systemd/*.volume
 chmod 600 /home/deploy/.config/containers/systemd/*.network
 chmod 600 /home/deploy/.config/containers/systemd/*.pod
+# Drop-ins for user units that aren't quadlets (only these files are
+# replaced; anything else in ~/.config/systemd/user is left alone).
+mkdir -p /home/deploy/.config/systemd/user/podman.service.d
+install -m 644 ./systemd/podman.service.d/quiet.conf \
+  /home/deploy/.config/systemd/user/podman.service.d/quiet.conf
+
 systemctl --user daemon-reload
 echo "Copied systemd service files and reloaded user daemon."
+
+# Apply the drop-in to Podman's API service if it is running (it's restarted
+# by its socket on the next request; containers are not affected).
+systemctl --user try-restart podman.service || true
 
 # Restart application pod (Mongo is in this pod but its volume persists)
 systemctl --user restart webpage-pod.service

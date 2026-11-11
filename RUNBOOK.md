@@ -736,6 +736,17 @@ The privacy policy says server logs (which contain IP addresses) are deleted aft
 
 It also prints Podman's log driver for the deploy user; it must be `journald` for the retention to apply to the containers.
 
+### Reading the logs
+
+```bash
+journalctl --user -u nginx -f          # as deploy: access log, live
+journalctl --user -u backend --since today
+```
+
+nginx's access log is the standard "combined" format plus `rt=` (response time, seconds) and `cf_ray=` (search it in Cloudflare's dashboard). The first field is the **visitor's** IP, taken from Cloudflare's `CF-Connecting-IP`; this is safe because nginx only accepts connections with Cloudflare's origin-pull certificate (`ssl_verify_client on`; see the comment in `nginx/nginx.conf`). The backend receives the same IP, so the login rate limit counts per visitor.
+
+Podman's API service (`podman.service`, polled by podman-exporter every scrape) logs only warnings and errors: `deploy.sh` installs `systemd/podman.service.d/quiet.conf` (`LogLevelMax=notice`).
+
 ### Privacy requests
 
 - **Deletion**: users delete their account from `/dashboard`; this deletes their comments too. An admin can do the same from `/users`.

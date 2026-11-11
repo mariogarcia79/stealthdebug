@@ -6,6 +6,8 @@ import compression from "compression";
 
 const app = express();
 
+// One proxy (nginx) in front: req.ip is the X-Forwarded-For nginx sets, which
+// is exactly the visitor IP from Cloudflare (used by the login rate limiter).
 app.set("trust proxy", 1);
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP is enforced at the nginx layer
