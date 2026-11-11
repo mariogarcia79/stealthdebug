@@ -266,42 +266,19 @@ cd ~/stealthdebug         # or wherever the repo is cloned
 ./scripts/backup-mongo.sh
 ```
 
-The script outputs the archive path and size. Example:
-```
-Backup complete: /home/deploy/mongo-backups/backup-20260110-143022.tar.gz (1.2M)
-```
+It prints the path and size of the encrypted backup (`~/backups/mongo/mongo-latest.archive.gz.gpg`). If it fails, do not proceed. Every later deploy makes this backup automatically.
 
 ### Step 2 — Verify the backup
 
-```bash
-tar -tzf ~/mongo-backups/backup-YYYYMMDD-HHMMSS.tar.gz | head -20
-```
+Copy it to your computer and check that it decrypts and lists the collections (section 10, "Restore", up to `--dryRun`). Optionally restore it into a throwaway local `mongo` container to see the data.
 
-You should see `.bson` files for each collection (users, posts, comments). If the archive is empty or the command fails, do not proceed — investigate the backup first.
-
-### Step 3 — Test restore to a temporary container (optional but strongly recommended)
-
-```bash
-# Start a temporary mongo container isolated from production
-podman run --rm -d --name mongo-test docker.io/library/mongo:6
-TEMP_DIR=$(mktemp -d)
-tar -xzf ~/mongo-backups/backup-YYYYMMDD-HHMMSS.tar.gz -C "$TEMP_DIR"
-podman cp "$TEMP_DIR" mongo-test:/tmp/restore
-podman exec mongo-test mongorestore /tmp/restore --drop
-# Verify the data looks right
-podman exec -it mongo-test mongosh stealthdebug --eval "db.users.countDocuments()"
-# Clean up
-podman stop mongo-test
-rm -rf "$TEMP_DIR"
-```
-
-### Step 4 — Push to main via a PR
+### Step 3 — Push to main via a PR
 
 Create a branch with any small change (e.g. a comment in RUNBOOK.md), open a PR, let CI pass, then merge. This triggers the full workflow including the first CI-managed deploy.
 
 Watch the deploy in: **GitHub → Repository → Actions → CI → most recent run → deploy job**.
 
-### Step 5 — Confirm data is intact after deploy
+### Step 4 — Confirm data is intact after deploy
 
 After the deploy job succeeds, as `deploy` on the VPS (see 3i) verify:
 
@@ -515,76 +492,82 @@ Comment out the job in `ai-review.yml` or delete the `CLAUDE_CODE_OAUTH_TOKEN` s
 
 > **The database volume lives at `~/.local/share/containers/storage/volumes/[name]/` on the VPS. It is NOT affected by `deploy.sh`, `git pull`, or image updates. The only operations that destroy it are `podman volume rm`, `podman system prune --volumes`, or manual deletion of that path.**
 
-### Manual backup
+### How backups work
 
-Run on the VPS as the deploy user:
+`scripts/backup-mongo.sh` dumps **every database** (users, comments, posts, pages, media records) from the running `mongo` container as a gzip archive and pipes it straight into `gpg`, encrypted to the site's OpenPGP key (`frontend/public/.well-known/pgp-key.txt`, fingerprint `0D5B0E0A…7554E2DD`). Nothing unencrypted is written to disk, and **the server cannot decrypt its own backup**: only the private key (on your computer) can.
+
+There is exactly **one** backup, always the latest complete one:
+
+```
+~/backups/mongo/mongo-latest.archive.gz.gpg      (deploy user, mode 600)
+```
+
+A new backup is written next to it and replaces it only once complete; a failed run leaves the previous backup in place.
+
+It runs:
+
+- **Weekly**: `mongo-backup.timer` (user unit, Sundays ~03:30, catches up after downtime). `deploy.sh` installs and enables it.
+- **Before every deploy**: `deploy.sh` runs it right after checking out the new commit, before any container is touched. If the backup fails, the deploy stops and rolls back. In an emergency, deploy without it: `SKIP_DB_BACKUP=1 ./deploy.sh`.
+- **By hand**: `./scripts/backup-mongo.sh` (as `deploy`, in the repo).
+
+The privacy policy describes this (one encrypted copy, replaced weekly). Keeping more copies, or copies elsewhere, needs a change there.
+
+The VPS needs `gpg` (`sudo apt install gnupg` if `command -v gpg` prints nothing).
+
+### Check it
 
 ```bash
-cd ~/stealthdebug
-./scripts/backup-mongo.sh
+systemctl --user list-timers mongo-backup.timer        # next and last run
+journalctl --user -u mongo-backup.service -n 20        # last result
+ls -l ~/backups/mongo/
+systemctl --user start mongo-backup.service            # run it now
 ```
 
-Output: a `.tar.gz` archive at `~/mongo-backups/backup-YYYYMMDD-HHMMSS.tar.gz`
+Errors are explicit: `gpg is not installed`, `container 'mongo' is not running`, `… is not the key 0D5B…` (the key file in the repo was replaced by another key; backups refuse to encrypt to it), or the `mongodump` error.
 
-### Automated weekly backup (recommended)
+The backup is only as good as the private key: keep the key and its revocation certificate backed up off the server. When the key is extended (same fingerprint) nothing changes; if you ever create a **new** key, update `MONGO_BACKUP_FINGERPRINT`'s default in the script and the key file together.
 
-Add to the deploy user's crontab (`crontab -e`):
+### Copy it off the server (optional)
 
-```cron
-# MongoDB backup — every Sunday at 03:00
-0 3 * * 0 /home/deploy/stealthdebug/scripts/backup-mongo.sh >> /home/deploy/mongo-backups/cron.log 2>&1
-```
-
-Rotate or offload old backups to avoid filling the disk:
-
-```cron
-# Delete backups older than 30 days
-0 4 * * 0 find /home/deploy/mongo-backups -name "*.tar.gz" -mtime +30 -delete
-```
-
-### Verify a backup
+The backup is on the same disk as the database, so it protects against mistakes (a bad deploy, a deleted collection), not against losing the VPS. From your computer:
 
 ```bash
-tar -tzf ~/mongo-backups/backup-YYYYMMDD-HHMMSS.tar.gz | head -20
+scp deploy@ssh.stealthdebug.org:backups/mongo/mongo-latest.archive.gz.gpg .
 ```
 
-You should see paths like `./mongodump-YYYYMMDD-HHMMSS/stealthdebug/users.bson`.
+Keep only the latest copy there too (the privacy policy promises deleted data leaves the backup within about a week).
 
-### Restore procedure
+### Restore
 
 > **This overwrites the live database. Stop the backend first. MongoDB itself must stay running.**
 
+On your computer (where the private key is), decrypt:
+
 ```bash
-# 1. Stop the backend (Mongo stays up — it's in the same pod but independent)
+gpg --output mongo.archive.gz --decrypt mongo-latest.archive.gz.gpg
+```
+
+Optionally list what it contains first: `mongorestore --archive=mongo.archive.gz --gzip --dryRun -v` (needs MongoDB's database tools), then copy it to the VPS and, as `deploy`:
+
+```bash
 systemctl --user stop backend.service
 
-# 2. Extract the archive
-BACKUP_FILE=~/mongo-backups/backup-YYYYMMDD-HHMMSS.tar.gz
-TEMP_DIR=$(mktemp -d)
-tar -xzf "$BACKUP_FILE" -C "$TEMP_DIR"
+podman cp mongo.archive.gz mongo:/tmp/mongo.archive.gz
+# --drop replaces existing collections; admin.* (Mongo's own users) is left alone
+podman exec mongo sh -c 'mongorestore --archive=/tmp/mongo.archive.gz --gzip --drop \
+  --nsExclude="admin.*" --nsExclude="config.*" \
+  --username="$MONGO_INITDB_ROOT_USERNAME" --password="$MONGO_INITDB_ROOT_PASSWORD" \
+  --authenticationDatabase=admin'
+podman exec mongo rm /tmp/mongo.archive.gz
 
-# 3. Copy the dump into the container
-podman cp "$TEMP_DIR" mongo:/tmp/restore
-
-# 4. Restore (--drop replaces existing data)
-DUMP_DIR=$(podman exec mongo ls /tmp/restore/)
-podman exec mongo mongorestore "/tmp/restore/${DUMP_DIR}/stealthdebug" \
-  --db stealthdebug --drop
-
-# 5. Verify counts
-podman exec mongo mongosh stealthdebug --eval "
-  print('users:', db.users.countDocuments());
-  print('posts:', db.posts.countDocuments());
-  print('comments:', db.comments.countDocuments());
-"
-
-# 6. Restart the backend
 systemctl --user start backend.service
-
-# 7. Clean up
-podman exec mongo rm -rf /tmp/restore
-rm -rf "$TEMP_DIR"
 ```
+
+Delete the decrypted `mongo.archive.gz` copies afterwards (on both machines): they contain users' data unencrypted.
+
+To restore a single collection (e.g. only posts), add `--nsInclude="<db>.posts"`; the database name is the one in the backend's `MONGO_URI`/`MONGO_DB_NAME`.
+
+**Older backups:** `~/mongo-backups/backup-*.tar.gz` files made by the previous version of the script are unencrypted and include users and comments. Once a new encrypted backup exists, delete them: `rm -r ~/mongo-backups`.
 
 ### Finding the actual Podman volume name
 
@@ -668,9 +651,13 @@ Post fields besides the Markdown:
 
 Markdown extras: `> [!NOTE]`, `> [!TIP]`, `> [!WARNING]` and `> [!CAUTION]` render as callouts; fenced code blocks get a language label and a copy button; `##`/`###` headings appear in the post's contents sidebar. Older posts have no tags or series until you edit them.
 
+### About page
+
+`/about` ("about me" in the navbar) is a single markdown page for the CV. As admin, use its **edit** button (`/about/edit`): the same editor as posts, with images and preview, but only the content (no title, summary, tags, series or draft state; it is public as soon as it is saved). Until it has content it shows "Nothing here yet" and is left out of the sitemap. It is stored in the `pages` collection (`slug: "about"`); images it uses count as "in use" in the media library.
+
 ### Backups
 
-`scripts/backup-mongo.sh` covers the database (including `media`), **not** the image files. Back up the volume separately:
+`scripts/backup-mongo.sh` (section 10) covers the database (including `media` records), **not** the image files. Back up the volume separately:
 
 ```bash
 podman volume export systemd-backend-uploads > ~/uploads-$(date +%Y%m%d).tar   # name: see `podman volume ls`
@@ -704,7 +691,7 @@ The EN/ES switch is in the navbar. Its choice is kept in the browser (`localStor
 3. Terms of use only: also bump `TERMS_VERSION` in `backend/src/controllers/auth.controller.ts`. Each account stores the version and date it accepted (`termsVersion`, `termsAcceptedAt`).
 4. If the change affects how account data is used, announce it on the site before it applies (the privacy policy promises this).
 
-Keep the privacy policy true when the infrastructure changes: a new provider that sees visitor or account data (analytics, an embed, a CDN, an email service), a new cookie, a different log retention, or backups of users/comments all need a line in it. Adding non-essential cookies or third-party embeds would also require a consent banner.
+Keep the privacy policy true when the infrastructure changes: a new provider that sees visitor or account data (analytics, an embed, a CDN, an email service), a new cookie, a different log retention, or a change to how backups are kept (section 10: one encrypted copy, replaced weekly) all need a line in it. Adding non-essential cookies or third-party embeds would also require a consent banner.
 
 ### Renew security.txt every year
 

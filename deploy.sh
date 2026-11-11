@@ -13,6 +13,10 @@
 #   DEPLOY_SHA if given, otherwise the latest origin/main, and builds the
 #   images locally with podman build.
 #
+# Before changing anything, the database is backed up (encrypted, replacing
+# the previous backup: scripts/backup-mongo.sh). If that fails, the deploy
+# stops. SKIP_DB_BACKUP=1 skips it (emergencies only).
+#
 # On any failure the previous config, git commit and images are restored.
 set -euo pipefail
 
@@ -92,6 +96,16 @@ if [ -z "${DEPLOY_REEXEC:-}" ] && ! git diff --quiet "$PREV_COMMIT" HEAD -- depl
   rm -rf "$BACKUP_DIR"
   export DEPLOY_REEXEC=1 DEPLOY_PREV_COMMIT="$PREV_COMMIT"
   exec "$0" "$@"
+fi
+
+# --- Back up the database before touching any container ---------------------
+if [ -n "${SKIP_DB_BACKUP:-}" ]; then
+  echo "WARNING: SKIP_DB_BACKUP set: deploying without a database backup."
+elif [ "$(podman container inspect --format '{{.State.Running}}' mongo 2>/dev/null)" = "true" ]; then
+  ./scripts/backup-mongo.sh
+else
+  # First deploy, or mongo is down: there is nothing running to back up.
+  echo "WARNING: mongo is not running; no database backup before this deploy."
 fi
 
 # Clean previous config (volumes are stored separately and are NOT affected)
@@ -191,9 +205,14 @@ chmod 600 /home/deploy/.config/containers/systemd/*.pod
 mkdir -p /home/deploy/.config/systemd/user/podman.service.d
 install -m 644 ./systemd/podman.service.d/quiet.conf \
   /home/deploy/.config/systemd/user/podman.service.d/quiet.conf
+# Weekly database backup (service points at this checkout's script)
+sed "s|@REPO@|$PWD|g" ./systemd/mongo-backup.service \
+  > /home/deploy/.config/systemd/user/mongo-backup.service
+install -m 644 ./systemd/mongo-backup.timer /home/deploy/.config/systemd/user/mongo-backup.timer
 
 systemctl --user daemon-reload
 echo "Copied systemd service files and reloaded user daemon."
+systemctl --user enable --now mongo-backup.timer
 
 # The log level only applies to a newly started Podman API process: restart
 # Podman's API service if it is running (its socket starts it again on the

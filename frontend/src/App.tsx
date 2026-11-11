@@ -13,6 +13,7 @@ import UserDashboard from './components/user/UserDashboard';
 import UserList from './components/user/UserList';
 import { ProtectedRoute } from './components/page/ProtectedRoute';
 import Footer from './components/page/Footer';
+import About from './components/page/About';
 import NotFound from './components/error/NotFound';
 // Legal documents (8 markdown files): loaded only when one is opened
 const LegalPageLazy = lazy(() => import('./components/legal/LegalPage'));
@@ -66,6 +67,18 @@ function App() {
           />
 
           <Route path="/blog/:id" element={<BlogPost />} />
+
+          <Route path="/about" element={<About />} />
+          <Route
+            path="/about/edit"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <Suspense fallback={<div className="wrap"><p className="empty loading">loading editor</p></div>}>
+                  <BlogEditor page="about" />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/users"

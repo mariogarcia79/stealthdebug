@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import PostModel from "../models/Post";
+import PageModel from "../models/Page";
 
 // Public address of the site, used in the sitemap's absolute URLs
 const SITE_URL = (process.env.SITE_URL || "https://stealthdebug.org").replace(/\/+$/, "");
@@ -42,9 +43,13 @@ class SitemapController {
         return d && (!max || d > max) ? d : max;
       }, undefined);
 
+      // The about page is listed once it has content
+      const about = await PageModel.findOne({ slug: "about" }).select("content updatedAt").lean();
+
       const entries = [
         ...STATIC_PAGES.map((p) =>
           urlEntry(p.path, p.path === "/" || p.path === "/blog" ? newest : undefined, p.changefreq, p.priority)),
+        ...(about?.content?.trim() ? [urlEntry("/about", about.updatedAt as Date, "monthly", "0.7")] : []),
         ...posts.map((p) => urlEntry(`/blog/${p._id}`, (p.updatedAt ?? p.createdAt) as Date, "monthly", "0.8")),
       ];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>\n`;

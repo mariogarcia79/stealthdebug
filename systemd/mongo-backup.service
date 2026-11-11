@@ -1,0 +1,13 @@
+# Installed by deploy.sh into ~/.config/systemd/user/ (@REPO@ is replaced
+# with the repository path). Started weekly by mongo-backup.timer; run it
+# now with: systemctl --user start mongo-backup.service
+[Unit]
+Description=Encrypted MongoDB backup (one copy, replaced each run)
+
+[Service]
+Type=oneshot
+# Waits for a running deploy to finish (it restarts mongo) instead of
+# dumping in the middle of it.
+ExecStart=/usr/bin/flock -w 1800 %h/.deploy.lock @REPO@/scripts/backup-mongo.sh
+Nice=10
+IOSchedulingClass=idle

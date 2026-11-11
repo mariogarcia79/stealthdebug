@@ -66,6 +66,7 @@ function Navbar() {
     <>
       <NavLink to="/" end className={linkClass}>{t('nav.home')}</NavLink>
       <NavLink to="/blog" className={linkClass}>{t('nav.blog')}</NavLink>
+      <NavLink to="/about" className={linkClass}>{t('nav.about')}</NavLink>
       {isAdmin && <NavLink to="/users" className={linkClass}>{t('nav.users')}</NavLink>}
       {isLoggedIn && <NavLink to="/dashboard" className={linkClass}>{t('nav.account')}</NavLink>}
     </>

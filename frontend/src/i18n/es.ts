@@ -5,6 +5,7 @@ const es: Record<MessageKey, string> = {
   // navegación
   'nav.home': 'inicio',
   'nav.blog': 'blog',
+  'nav.about': 'sobre mí',
   'nav.users': 'usuarios',
   'nav.account': 'cuenta',
   'nav.newPost': 'nuevo post',
@@ -176,7 +177,7 @@ const es: Record<MessageKey, string> = {
   'account.passwordChanged': 'Contraseña cambiada.',
   'account.passwordFailed': 'No se pudo cambiar la contraseña.',
   'account.danger': 'zona peligrosa',
-  'account.deleteInfo': 'Al borrar tu cuenta se eliminan definitivamente tu perfil y todos los comentarios que hayas escrito. No se guardan copias de seguridad de cuentas ni comentarios, así que no se puede deshacer.',
+  'account.deleteInfo': 'Al borrar tu cuenta se eliminan definitivamente tu perfil y todos los comentarios que hayas escrito. No se puede deshacer. Los datos borrados también desaparecen de la copia de seguridad cifrada en la siguiente copia semanal.',
   'account.deleteInfoOther': 'Al borrar esta cuenta se eliminan definitivamente el perfil y todos sus comentarios.',
   'account.adminNoDelete': 'Los administradores no pueden borrar su propia cuenta desde aquí.',
   'account.deleteButton': 'borrar cuenta y comentarios',
@@ -187,6 +188,11 @@ const es: Record<MessageKey, string> = {
   'account.yourData': 'tus datos',
   'account.yourDataText': 'El perfil de arriba son todos los datos personales guardados sobre tu cuenta, además de tus comentarios. Para pedir una copia, o para cualquier otra solicitud sobre privacidad, escribe a contact@stealthdebug.org.',
   'account.privacyLink': 'política de privacidad',
+
+  // página sobre mí
+  'about.title': 'Sobre mí',
+  'about.empty': 'Todavía no hay nada aquí.',
+  'about.loadError': 'No se pudo cargar esta página.',
 
   // 404
   'nf.title': 'No hay nada en esta dirección.',

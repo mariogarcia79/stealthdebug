@@ -9,6 +9,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
 import PostAPI from '../../api/posts.api';
+import PagesAPI, { type PageSlug } from '../../api/pages.api';
 import MediaAPI from '../../api/media.api';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -229,11 +230,17 @@ function TagInput({ value, onChange, disabled }: { value: string[]; onChange: (t
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-function BlogEditor() {
+// page: edit a standalone page (the about page) instead of a post. Same
+// editor, media and preview; only the content is edited (no title, summary,
+// tags, series or draft/published state).
+function BlogEditor({ page }: { page?: PageSlug } = {}) {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = page ? undefined : params.id;
   const { isLoggedIn } = useAuth();
-  const isEditing = !!id;
+  const isEditing = !!id || !!page;
+  const draftId = page ? `page-${page}` : id;
+  const viewPath = page ? `/${page}` : `/blog/${id}`;
 
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -271,10 +278,18 @@ function BlogEditor() {
       setTitle(s.title); setSummary(s.summary); setContent(s.content);
       setTags(s.tags); setSeries(s.series); setPublished(s.published);
       setSaved(s); setLoaded(true);
-      const draft = readDraft(id);
+      const draft = readDraft(draftId);
       if (draft && !same(draft, s)) setDraftOffer(draft);
     };
-    if (id) {
+    if (page) {
+      setLoaded(false);
+      PagesAPI.get(page)
+        .then((p) => {
+          setPostImages(p.images ?? {});
+          start({ ...EMPTY, content: p.content, published: true });
+        })
+        .catch(() => !cancelled && setError('Failed to load page'));
+    } else if (id) {
       setLoaded(false);
       PostAPI.getPostById(id)
         .then((post) => {
@@ -286,17 +301,17 @@ function BlogEditor() {
       start(EMPTY);
     }
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Autosave a local draft while there are unsaved changes.
   useEffect(() => {
     if (!loaded) return;
     const timer = setTimeout(() => {
-      if (dirty) writeDraft(id, current); else clearDraft(id);
+      if (dirty) writeDraft(draftId, current); else clearDraft(draftId);
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, summary, content, tags, series, published, loaded, dirty, id]);
+  }, [title, summary, content, tags, series, published, loaded, dirty, draftId]);
 
   // Warn before closing the tab with unsaved changes.
   useEffect(() => {
@@ -330,14 +345,20 @@ function BlogEditor() {
     if (saveState === 'saving') return;
     // Saving now would store the "Uploading…" placeholder instead of the image
     if (uploading > 0) { setError('Wait for the image upload to finish before saving.'); setSaveState('error'); return; }
-    const clientError = validatePost(title, summary, content);
+    const clientError = page
+      ? (content.length > MAX_CONTENT_LENGTH ? `Content must be ${MAX_CONTENT_LENGTH} characters or less` : null)
+      : validatePost(title, summary, content);
     if (clientError) { setError(clientError); setSaveState('error'); return; }
 
     setSaveState('saving');
     setError('');
     const snapshot: Snapshot = { title, summary, content, tags, series: series.trim(), published };
     try {
-      if (isEditing && id) {
+      if (page) {
+        await PagesAPI.save(page, content);
+        setSaved(snapshot);
+        clearDraft(draftId);
+      } else if (isEditing && id) {
         await PostAPI.updatePost(id, snapshot);
         setSaved(snapshot);
         clearDraft(id);
@@ -353,7 +374,7 @@ function BlogEditor() {
       setError(err?.message || 'Failed to save.');
       setSaveState('error');
     }
-  }, [saveState, uploading, title, summary, content, tags, series, published, isEditing, id, navigate, loadMedia]);
+  }, [saveState, uploading, title, summary, content, tags, series, published, isEditing, id, page, draftId, navigate, loadMedia]);
 
   // Ctrl/Cmd+S anywhere on the page
   const saveRef = useRef(save);
@@ -458,13 +479,13 @@ function BlogEditor() {
         <div className="post-editor-header">
           <div>
             <div className="eyebrow">
-              <Link to={isEditing ? `/blog/${id}` : '/blog'} className="link">{isEditing ? '~/blog/post' : '~/blog'}</Link>
+              <Link to={isEditing ? viewPath : '/blog'} className="link">{page ? `~/${page}` : isEditing ? '~/blog/post' : '~/blog'}</Link>
               <span> / {isEditing ? 'edit' : 'new'}</span>
             </div>
           </div>
-          <h1>{isEditing ? 'Edit post' : 'New post'}</h1>
+          <h1>{page ? `Edit ${page} page` : isEditing ? 'Edit post' : 'New post'}</h1>
           <span className={`editor-status ${dirty ? 'dirty' : ''}`}>{status}</span>
-          <button
+          {!page && <button
             type="button"
             role="switch"
             aria-checked={published}
@@ -473,9 +494,9 @@ function BlogEditor() {
             title={published ? 'Visible to everyone. Click, then save, to unpublish.' : 'Only you can see it. Click, then save, to publish.'}
           >
             <i aria-hidden="true" />{published ? 'published' : 'draft'}
-          </button>
+          </button>}
           {isEditing && (
-            <Link to={`/blog/${id}`} className="btn sm" target="_blank" rel="noopener noreferrer">view ↗</Link>
+            <Link to={viewPath} className="btn sm" target="_blank" rel="noopener noreferrer">view ↗</Link>
           )}
           <button
             className="btn sm primary"
@@ -498,11 +519,11 @@ function BlogEditor() {
               if (typeof draftOffer.published === 'boolean') setPublished(draftOffer.published);
               setDraftOffer(null);
             }}>restore</button>
-            <button className="btn sm ghost" onClick={() => { clearDraft(id); setDraftOffer(null); }}>discard</button>
+            <button className="btn sm ghost" onClick={() => { clearDraft(draftId); setDraftOffer(null); }}>discard</button>
           </div>
         )}
 
-        <div className="editor-meta">
+        {!page && <div className="editor-meta">
           <div className="field wide">
             <label htmlFor="post-title">title</label>
             <input id="post-title" type="text" value={title} maxLength={MAX_TITLE_LENGTH}
@@ -524,7 +545,7 @@ function BlogEditor() {
             <input id="post-series" type="text" value={series} maxLength={80} placeholder="e.g. ZTE H108N"
               onChange={(e) => setSeries(e.target.value)} className="input" disabled={!loaded} />
           </div>
-        </div>
+        </div>}
 
         <div className="post-editor-panes">
           <section className="post-editor-pane">
@@ -577,7 +598,7 @@ function BlogEditor() {
               {tab === 'preview' ? (
                 <>
                   <div className="post-head">
-                    <h1>{title || 'Untitled'}</h1>
+                    <h1>{page ? 'About me' : title || 'Untitled'}</h1>
                     {summary && <p className="lead">{summary}</p>}
                     {(tags.length > 0 || series.trim()) && (
                       <div className="post-meta">

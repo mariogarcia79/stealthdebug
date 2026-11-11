@@ -5,6 +5,7 @@ const en = {
   // navigation
   'nav.home': 'home',
   'nav.blog': 'blog',
+  'nav.about': 'about me',
   'nav.users': 'users',
   'nav.account': 'account',
   'nav.newPost': 'new post',
@@ -176,7 +177,7 @@ const en = {
   'account.passwordChanged': 'Password changed.',
   'account.passwordFailed': 'Failed to change the password.',
   'account.danger': 'danger zone',
-  'account.deleteInfo': 'Deleting your account permanently removes your profile and every comment you have written. No backups of accounts or comments are kept, so this cannot be undone.',
+  'account.deleteInfo': 'Deleting your account permanently removes your profile and every comment you have written. This cannot be undone. The deleted data also leaves the encrypted backup at the next weekly backup.',
   'account.deleteInfoOther': 'Deleting this account permanently removes the profile and all its comments.',
   'account.adminNoDelete': "Administrators can't delete their own account here.",
   'account.deleteButton': 'delete account and comments',
@@ -187,6 +188,11 @@ const en = {
   'account.yourData': 'your data',
   'account.yourDataText': 'Your profile above is all the personal data stored about your account, plus your comments. To get a copy, or for any other privacy request, write to contact@stealthdebug.org.',
   'account.privacyLink': 'privacy policy',
+
+  // about page
+  'about.title': 'About me',
+  'about.empty': 'Nothing here yet.',
+  'about.loadError': 'Could not load this page.',
 
   // 404
   'nf.title': 'Nothing at this address.',

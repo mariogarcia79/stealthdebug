@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 
 import MediaModel, { IMediaDocument, IMediaVariant } from "../models/Media";
 import PostModel from "../models/Post";
+import PageModel from "../models/Page";
 import {
   VARIANTS_DIRNAME,
   MAX_ORIGINAL_WIDTH,
@@ -139,13 +140,26 @@ async function removeFiles(filename: string, variants: IMediaVariant[]): Promise
 }
 
 async function allPostUsage(): Promise<{ _id: string; title: string; published: boolean; content: string }[]> {
-  const posts = await PostModel.find({}, { title: 1, content: 1, published: 1 }).lean();
-  return posts.map((p) => ({
-    _id: String(p._id),
-    title: p.title,
-    published: p.published,
-    content: p.content || "",
-  }));
+  const [posts, pages] = await Promise.all([
+    PostModel.find({}, { title: 1, content: 1, published: 1 }).lean(),
+    PageModel.find({}, { slug: 1, content: 1 }).lean(),
+  ]);
+  return [
+    ...posts.map((p) => ({
+      _id: String(p._id),
+      title: p.title,
+      published: p.published,
+      content: p.content || "",
+    })),
+    // Pages (the about page) also use library images: deleting one of those
+    // must be refused just like for a post.
+    ...pages.map((p) => ({
+      _id: `page:${p.slug}`,
+      title: `${p.slug} page`,
+      published: true,
+      content: p.content || "",
+    })),
+  ];
 }
 
 function toDTO(doc: IMediaDocument, posts: Awaited<ReturnType<typeof allPostUsage>>): MediaDTO {

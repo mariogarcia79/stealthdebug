@@ -93,7 +93,7 @@ Las fuentes, los scripts y las imágenes se sirven desde el propio stealthdebug.
 
 Todo el tráfico va cifrado (HTTPS). Las contraseñas se guardan como hashes bcrypt con sal. La cookie de sesión no es accesible desde scripts. El acceso y el registro tienen límite de intentos. El servidor ejecuta cada servicio en un contenedor aislado y sin privilegios, y el acceso a él está restringido.
 
-**No hay copias de seguridad de cuentas ni de comentarios.** Lo que se borra desaparece de la base de datos al momento. Solo hay copias de los artículos del blog y sus imágenes, que no contienen datos tuyos.
+**Copias de seguridad.** La base de datos (incluidas las cuentas y los comentarios) se copia una vez por semana y antes de cada actualización de la web. La copia está cifrada, se guarda en el mismo servidor en España y solo yo tengo la clave que permite abrirla. Solo existe una copia a la vez: cada nueva sustituye a la anterior. Así, lo que borras desaparece de la base de datos al momento y de la copia en la siguiente copia, normalmente en menos de una semana.
 
 Si alguna vez una brecha de seguridad afectara a tus datos, la notificaré a la Agencia Española de Protección de Datos en un máximo de 72 horas cuando sea obligatorio, y te avisaré directamente si puede suponer un riesgo alto para ti.
 

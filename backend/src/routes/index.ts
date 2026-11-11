@@ -5,6 +5,7 @@ import userRoutes   from "./users.routes";
 import commentsRoutes from "./comments.routes";
 import uploadsRoutes from "./uploads.routes";
 import mediaRoutes from "./media.routes";
+import pagesRoutes from "./pages.routes";
 import SitemapController from "../controllers/sitemap.controller";
 import { authenticate, checkRole } from "../middleware/auth.middleware";
 
@@ -16,6 +17,7 @@ router.use( "/users",   userRoutes);
 router.use( "/comments",commentsRoutes);
 router.use( "/uploads", uploadsRoutes);
 router.use( "/media",   mediaRoutes);
+router.use( "/pages",   pagesRoutes);
 router.get( "/sitemap.xml", SitemapController.getSitemap);
 
 export default router;

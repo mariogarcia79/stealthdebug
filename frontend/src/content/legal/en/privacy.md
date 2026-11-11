@@ -93,7 +93,7 @@ Fonts, scripts and images are all served from stealthdebug.org itself, so readin
 
 All traffic is encrypted (HTTPS). Passwords are stored as salted bcrypt hashes. The login cookie cannot be read by scripts. Login and sign-up are rate-limited. The server runs every service in an isolated, unprivileged container, and access to it is restricted.
 
-**There are no backups of accounts or comments.** When something is deleted, it is gone from the live database straight away. Backups exist only for the blog posts and their images, which contain no data about you.
+**Backups.** The database (including accounts and comments) is backed up once a week and before each update of the site. The backup is encrypted, stays on the same server in Spain, and only I hold the key that can open it. Only one backup exists at a time: each new one replaces the previous one. So when you delete something, it is gone from the live database straight away and from the backup at the next backup, normally within a week.
 
 If a breach ever affects your data, I will notify the Spanish Data Protection Agency within 72 hours where required, and tell you directly if it is likely to put you at high risk.
 

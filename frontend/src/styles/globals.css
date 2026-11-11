@@ -433,6 +433,8 @@ textarea.input.prose-input { font-family: var(--sans); font-size: 15px; }
 .legal-grid { display: grid; grid-template-columns: minmax(0, 760px) 230px; gap: 72px; }
 .legal-grid > aside { min-width: 0; }
 .legal .prose table { display: table; }
+.about-body { max-width: 760px; padding-bottom: 64px; }
+.about .prose table { display: table; }
 .legal .prose td:first-child { white-space: nowrap; }
 
 /* ---------------------------------------------------------------------
