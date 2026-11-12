@@ -158,7 +158,7 @@ function imagesFromLibrary(items: Media[]): PostImages {
 // ---------------------------------------------------------------------------
 // Drafts (per post, in this browser only)
 // ---------------------------------------------------------------------------
-interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string; published: boolean }
+interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string; published: boolean; mcpVisible: boolean }
 interface Draft extends Snapshot { savedAt: number }
 
 const draftKey = (id?: string) => `stealthdebug:draft:${id ?? 'new'}`;
@@ -182,10 +182,11 @@ function clearDraft(id?: string) {
 const same = (a: Snapshot, b: Snapshot) =>
   a.title === b.title && a.summary === b.summary && a.content === b.content &&
   (a.tags ?? []).join('\n') === (b.tags ?? []).join('\n') && (a.series ?? '') === (b.series ?? '') &&
-  (a.published ?? b.published) === b.published;
+  (a.published ?? b.published) === b.published &&
+  (a.mcpVisible ?? b.mcpVisible) === b.mcpVisible;
 
 // New posts start as drafts: visible only to the admin until published
-const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '', published: false };
+const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '', published: false, mcpVisible: true };
 
 // Same rules as the backend (normalizeTags): lowercase, no "#", spaces -> "-"
 function normalizeTag(raw: string): string {
@@ -248,6 +249,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
   const [tags, setTags] = useState<string[]>([]);
   const [series, setSeries] = useState('');
   const [published, setPublished] = useState(false);
+  const [mcpVisible, setMcpVisible] = useState(true);
   const [saved, setSaved] = useState<Snapshot>(EMPTY);
   const [loaded, setLoaded] = useState(!isEditing);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -262,7 +264,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
   const [postImages, setPostImages] = useState<PostImages>({});
 
   const cm = useRef<ReactCodeMirrorRef>(null);
-  const current: Snapshot = { title, summary, content, tags, series, published };
+  const current: Snapshot = { title, summary, content, tags, series, published, mcpVisible };
   const dirty = loaded && !same(current, saved);
   const contentTooLong = content.length > MAX_CONTENT_LENGTH;
 
@@ -276,7 +278,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
     const start = (s: Snapshot) => {
       if (cancelled) return;
       setTitle(s.title); setSummary(s.summary); setContent(s.content);
-      setTags(s.tags); setSeries(s.series); setPublished(s.published);
+      setTags(s.tags); setSeries(s.series); setPublished(s.published); setMcpVisible(s.mcpVisible);
       setSaved(s); setLoaded(true);
       const draft = readDraft(draftId);
       if (draft && !same(draft, s)) setDraftOffer(draft);
@@ -294,7 +296,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
       PostAPI.getPostById(id)
         .then((post) => {
           setPostImages(post.images ?? {});
-          start({ title: post.title, summary: post.summary, content: post.content, tags: post.tags ?? [], series: post.series?.name ?? '', published: post.published });
+          start({ title: post.title, summary: post.summary, content: post.content, tags: post.tags ?? [], series: post.series?.name ?? '', published: post.published, mcpVisible: post.mcpVisible ?? true });
         })
         .catch(() => !cancelled && setError('Failed to load post'));
     } else {
@@ -311,7 +313,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, summary, content, tags, series, published, loaded, dirty, draftId]);
+  }, [title, summary, content, tags, series, published, mcpVisible, loaded, dirty, draftId]);
 
   // Warn before closing the tab with unsaved changes.
   useEffect(() => {
@@ -352,7 +354,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
 
     setSaveState('saving');
     setError('');
-    const snapshot: Snapshot = { title, summary, content, tags, series: series.trim(), published };
+    const snapshot: Snapshot = { title, summary, content, tags, series: series.trim(), published, mcpVisible };
     try {
       if (page) {
         await PagesAPI.save(page, content);
@@ -374,7 +376,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
       setError(err?.message || 'Failed to save.');
       setSaveState('error');
     }
-  }, [saveState, uploading, title, summary, content, tags, series, published, isEditing, id, page, draftId, navigate, loadMedia]);
+  }, [saveState, uploading, title, summary, content, tags, series, published, mcpVisible, isEditing, id, page, draftId, navigate, loadMedia]);
 
   // Ctrl/Cmd+S anywhere on the page
   const saveRef = useRef(save);
@@ -517,6 +519,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
               setTitle(draftOffer.title); setSummary(draftOffer.summary); setContent(draftOffer.content);
               setTags(draftOffer.tags ?? []); setSeries(draftOffer.series ?? '');
               if (typeof draftOffer.published === 'boolean') setPublished(draftOffer.published);
+              if (typeof draftOffer.mcpVisible === 'boolean') setMcpVisible(draftOffer.mcpVisible);
               setDraftOffer(null);
             }}>restore</button>
             <button className="btn sm ghost" onClick={() => { clearDraft(draftId); setDraftOffer(null); }}>discard</button>
@@ -545,6 +548,10 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
             <input id="post-series" type="text" value={series} maxLength={80} placeholder="e.g. ZTE H108N"
               onChange={(e) => setSeries(e.target.value)} className="input" disabled={!loaded} />
           </div>
+          <label className="check mcp-visible">
+            <input type="checkbox" checked={mcpVisible} onChange={(e) => setMcpVisible(e.target.checked)} disabled={!loaded} />
+            <span>Visible to agents (MCP) <span className="muted">· unchecked: AI agents can't read this post or its translations, nor propose changes to it</span></span>
+          </label>
         </div>}
 
         <div className="post-editor-panes">

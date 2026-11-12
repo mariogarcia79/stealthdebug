@@ -8,6 +8,7 @@ import mediaRoutes from "./media.routes";
 import pagesRoutes from "./pages.routes";
 import agentApiRoutes from "./agentApi.routes";
 import oauthRoutes from "./oauth.routes";
+import adminRoutes from "./admin.routes";
 import SitemapController from "../controllers/sitemap.controller";
 import { notFoundHandler } from "../middleware/error.middleware";
 
@@ -22,6 +23,7 @@ router.use( "/media",   mediaRoutes);
 router.use( "/pages",   pagesRoutes);
 router.use( "/agent",   agentApiRoutes);
 router.use( "/oauth",   oauthRoutes);
+router.use( "/admin",   adminRoutes);
 router.get( "/sitemap.xml", SitemapController.getSitemap);
 
 // Anything else under /api: JSON 404

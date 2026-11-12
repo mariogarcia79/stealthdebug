@@ -7,6 +7,7 @@ const en = {
   'nav.blog': 'blog',
   'nav.about': 'about me',
   'nav.users': 'users',
+  'nav.agents': 'agents',
   'nav.account': 'account',
   'nav.newPost': 'new post',
   'nav.logout': 'log out',

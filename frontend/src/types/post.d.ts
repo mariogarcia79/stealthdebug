@@ -20,6 +20,9 @@ export interface Post {
   published:  boolean;
   tags:       string[];
   series:     string;     // "" = not part of a series
+  lang?:      'en' | 'es';
+  translationOf?: string | null;   // set on translations: the original's id
+  mcpVisible?: boolean;   // false: hidden from AI agents (MCP)
   createdAt:  string;
   updatedAt:  string;
 }
@@ -39,4 +42,4 @@ export interface PostDetail extends Omit<Post, 'series'> {
   next:           PostLink | null;   // newer
 }
 
-export type PostInput = Pick<Post, 'title' | 'summary' | 'content' | 'tags' | 'series' | 'published'>;
+export type PostInput = Pick<Post, 'title' | 'summary' | 'content' | 'tags' | 'series' | 'published'> & { mcpVisible?: boolean };

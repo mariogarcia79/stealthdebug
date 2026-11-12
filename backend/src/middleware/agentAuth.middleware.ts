@@ -9,6 +9,7 @@ import { env } from "../config/env";
 import { readKey, verifyJwt } from "../utils/edJwt";
 import { isObjectId } from "../utils/validation";
 import AuditService from "../services/audit.service";
+import { agentToolCalls, agentToolErrors } from "../config/metrics";
 
 // The agent API is called only by the MCP server, never by browsers. Each
 // request carries a short-lived service token signed with the MCP server's
@@ -96,6 +97,9 @@ export const requireScope = (scope: string) => (req: Request, res: Response, nex
 export const auditCall = (tool: string, target: "post" | "changeRequest" | "none" = "none") =>
   (req: Request, res: Response, next: NextFunction) => {
   res.on("finish", () => {
+    const outcome = res.statusCode < 400 ? "ok" : String(res.statusCode);
+    agentToolCalls.inc({ tool, outcome });
+    if (res.statusCode >= 400) agentToolErrors.inc({ tool });
     const id = req.params.id;
     const bodyPost = typeof req.body?.postId === "string" ? req.body.postId : undefined;
     AuditService.log({

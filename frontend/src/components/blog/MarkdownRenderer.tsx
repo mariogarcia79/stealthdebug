@@ -15,6 +15,10 @@ interface MarkdownProps {
   // Size data for uploaded images (from the post API or the media library).
   // Images without an entry render as a plain lazy-loaded <img>.
   images?: PostImages;
+  // Content from an agent, under review: no request leaves the site (only
+  // this site's uploads load; other images show their address instead) and
+  // links don't navigate: each shows its real target.
+  untrusted?: boolean;
 }
 
 // The article column is at most 720px wide; below 900px the image fills the screen.
@@ -172,7 +176,25 @@ function Pre(props: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
 
 const COMPONENTS: Components = { a: Anchor, img: Image, pre: Pre };
 
-export default function MarkdownRenderer({ content, images }: MarkdownProps) {
+function UntrustedAnchor(props: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
+  const { children, href } = props;
+  return (
+    <span className="untrusted-link" title={href}>
+      <span className="untrusted-link-text">{children}</span> <code>{href ?? "(no address)"}</code>
+    </span>
+  );
+}
+
+function UntrustedImage(props: ComponentPropsWithoutRef<"img"> & { node?: unknown }) {
+  const { src, alt } = props;
+  const s = typeof src === "string" ? src : "";
+  if (/^\/api\/uploads\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(s)) return <Image {...props} />;
+  return <span className="untrusted-image">[external image not loaded: <code>{s || "(no address)"}</code>{alt ? ` · ${alt}` : ""}]</span>;
+}
+
+const UNTRUSTED: Components = { a: UntrustedAnchor, img: UntrustedImage, pre: Pre };
+
+export default function MarkdownRenderer({ content, images, untrusted = false }: MarkdownProps) {
   const { t } = useI18n();
   const rehypePlugins = useMemo(() => {
     const labels: CalloutLabels = {
@@ -188,7 +210,7 @@ export default function MarkdownRenderer({ content, images }: MarkdownProps) {
           remarkPlugins={[remarkGfm]}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           rehypePlugins={rehypePlugins as any}
-          components={COMPONENTS}
+          components={untrusted ? UNTRUSTED : COMPONENTS}
         >
           {content}
         </ReactMarkdown>

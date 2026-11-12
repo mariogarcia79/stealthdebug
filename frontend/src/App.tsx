@@ -25,6 +25,23 @@ const LegalPage = (props: LegalProps) => (
   </Suspense>
 );
 
+// Agents admin (change requests, agents, guidelines, audit log): admin only, lazy
+const lazyAdmin = { 
+  changes: lazy(() => import('./components/admin/ChangeRequestList')),
+  review: lazy(() => import('./components/admin/ChangeRequestReview')),
+  agents: lazy(() => import('./components/admin/Agents')),
+  guidelines: lazy(() => import('./components/admin/Guidelines')),
+  logs: lazy(() => import('./components/admin/AuditLog')),
+};
+const Admin = ({ page }: { page: keyof typeof lazyAdmin }) => {
+  const C = lazyAdmin[page];
+  return (
+    <ProtectedRoute requiredRole="admin">
+      <Suspense fallback={<div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>…</p></div>}><C /></Suspense>
+    </ProtectedRoute>
+  );
+};
+
 // New page = start at the top (unless jumping to a #section)
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -81,6 +98,12 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route path="/admin/changes" element={<Admin page="changes" />} />
+          <Route path="/admin/changes/:id" element={<Admin page="review" />} />
+          <Route path="/admin/agents" element={<Admin page="agents" />} />
+          <Route path="/admin/guidelines" element={<Admin page="guidelines" />} />
+          <Route path="/admin/logs" element={<Admin page="logs" />} />
 
           <Route
             path="/users"

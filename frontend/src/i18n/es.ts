@@ -7,6 +7,7 @@ const es: Record<MessageKey, string> = {
   'nav.blog': 'blog',
   'nav.about': 'sobre mí',
   'nav.users': 'usuarios',
+  'nav.agents': 'agentes',
   'nav.account': 'cuenta',
   'nav.newPost': 'nuevo post',
   'nav.logout': 'cerrar sesión',
