@@ -10,6 +10,8 @@ import agentApiRoutes from "./agentApi.routes";
 import oauthRoutes from "./oauth.routes";
 import adminRoutes from "./admin.routes";
 import SitemapController from "../controllers/sitemap.controller";
+import LlmsController from "../controllers/llms.controller";
+import { asyncHandler } from "../middleware/error.middleware";
 import { notFoundHandler } from "../middleware/error.middleware";
 
 const router = Router();
@@ -25,6 +27,8 @@ router.use( "/agent",   agentApiRoutes);
 router.use( "/oauth",   oauthRoutes);
 router.use( "/admin",   adminRoutes);
 router.get( "/sitemap.xml", SitemapController.getSitemap);
+router.get( "/llms.txt",    asyncHandler(LlmsController.llmsTxt));
+router.get( "/md/:file",    asyncHandler(LlmsController.postMarkdown));
 
 // Anything else under /api: JSON 404
 router.use(notFoundHandler);

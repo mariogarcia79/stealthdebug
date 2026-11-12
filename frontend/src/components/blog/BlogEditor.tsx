@@ -550,7 +550,7 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
           </div>
           <label className="check mcp-visible">
             <input type="checkbox" checked={mcpVisible} onChange={(e) => setMcpVisible(e.target.checked)} disabled={!loaded} />
-            <span>Visible to agents (MCP) <span className="muted">· unchecked: AI agents can't read this post or its translations, nor propose changes to it</span></span>
+            <span>Visible to agents (MCP) <span className="muted">· unchecked: hidden from AI tools (MCP agents, llms.txt, Markdown copies), translations included; agents can't propose changes to it</span></span>
           </label>
         </div>}
 

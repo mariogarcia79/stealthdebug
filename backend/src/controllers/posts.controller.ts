@@ -144,6 +144,9 @@ class PostController {
       originalId,
       originalAuthor: post.translationOf ? person(original?.author) : null,
       originalLang: original?.lang ?? post.lang,
+      // Markdown copy for AI tools (not for drafts or posts hidden from agents)
+      markdown: post.published && original?.published && original.mcpVisible !== false
+        ? `/blog/${originalId}${post.translationOf ? `.${post.lang}` : ""}.md` : null,
       languages: variants.map((v) => ({ _id: v._id, lang: v.lang, published: v.published })),
       images,
       readingMinutes: readingMinutes(post.content),

@@ -45,7 +45,8 @@ export interface PostDetail extends Omit<Post, 'series'> {
   originalId?:    string;              // id of the original (comments, series, links)
   originalAuthor?: PostPerson | null;  // translations: who wrote the original
   originalLang?:  'en' | 'es';
-  languages?:     PostLanguage[];      // the original and its translations
+  languages?:     PostLanguage[];
+  markdown?:      string | null;       // Markdown copy for AI tools, if offered      // the original and its translations
   readingMinutes: number;
   series:         PostSeries | null;
   prev:           PostLink | null;   // older

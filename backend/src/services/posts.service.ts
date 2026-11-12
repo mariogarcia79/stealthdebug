@@ -118,9 +118,10 @@ class PostService {
   }
 
   // _id and dates of every published post, newest first (sitemap)
-  static async listPublishedForSitemap(): Promise<{ _id: Types.ObjectId; createdAt?: Date; updatedAt?: Date }[]> {
+  // Originals only; their published translations are alternates (hreflang)
+  static async listPublishedForSitemap(): Promise<{ _id: Types.ObjectId; lang: string; translationOf: Types.ObjectId | null; createdAt?: Date; updatedAt?: Date }[]> {
     return PostModel.find({ published: true })
-      .select("_id updatedAt createdAt")
+      .select("_id lang translationOf updatedAt createdAt")
       .sort({ createdAt: -1 })
       .lean();
   }

@@ -102,7 +102,18 @@ function BlogPost() {
     return () => { document.title = 'stealthdebug'; };
   }, [post]);
 
-  // Jump to #section once the content is rendered
+  // Markdown copy of the post for AI tools (none for drafts or hidden posts)
+  useEffect(() => {
+    if (!post?.markdown) return;
+    const link = document.createElement('link');
+    link.rel = 'alternate';
+    link.type = 'text/markdown';
+    link.href = post.markdown;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [post]);
+
+    // Jump to #section once the content is rendered
   useEffect(() => {
     if (!post || !window.location.hash) return;
     document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
