@@ -9,7 +9,8 @@ export interface IPost {
   tags: string[];
   series: string;
   lang: string;                          // "en" | "es" (config/langs.ts)
-  translationOf: Types.ObjectId | null;  // set on translations: the original post
+  translationOf: Types.ObjectId | null;
+  supervisor?: Types.ObjectId | null;    // admin who accepted an agent's post/translation  // set on translations: the original post
   mcpVisible: boolean;                   // false: hidden from agents (MCP)
   createdAt: Date;
   updatedAt: Date;

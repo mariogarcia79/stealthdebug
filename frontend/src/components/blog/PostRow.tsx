@@ -39,6 +39,7 @@ function PostRow({ post, index, onTag }: Props) {
         <span className="idx">0x{index.toString(16).padStart(2, '0')}</span>
         <time dateTime={post.createdAt}>{isoDate(post.createdAt)}</time>
         <span>{t('post.minRead', { n: post.readingMinutes })}</span>
+        {post.author?.name && <span className="byline">{t('post.by', { name: post.author.name })}</span>}
         {!post.published && <span className="tag draft">{t('post.draft')}</span>}
       </div>
       <div>

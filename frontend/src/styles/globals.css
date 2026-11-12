@@ -682,3 +682,8 @@ button.link { background: none; border: 0; padding: 0; cursor: pointer; font: in
 .table.audit td { font-size: 12.5px; padding: 8px 10px; }
 .table.audit td.bad { color: var(--danger-fg); }
 @media (max-width: 900px) { .guidelines { grid-template-columns: 1fr; } }
+
+/* ---- agent attribution and languages on posts */
+.post-meta .byline { color: var(--text); }
+.agent-banner { margin-top: 18px; padding: 12px 16px; border: 1px solid rgba(71, 235, 180, 0.35); border-left-width: 3px; border-radius: var(--radius); background: var(--accent-bg); font: 400 14px/1.6 var(--sans); color: var(--body); }
+.also-in { margin-top: 12px; font-size: 13px; color: var(--meta); display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }

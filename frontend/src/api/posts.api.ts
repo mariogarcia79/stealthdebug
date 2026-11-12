@@ -3,9 +3,11 @@ import { API_BASE_URL } from '../constants/constants';
 
 class PostAPI {
   // drafts: the admin's blog list also shows unpublished posts
-  static async getAllPosts(drafts = false): Promise<PostSummary[]> {
+  // lang: the site's language; posts translated into it come in that language
+  static async getAllPosts(drafts = false, lang?: string): Promise<PostSummary[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/posts${drafts ? '?drafts=1' : ''}`, { credentials: 'include' });
+      const qs = new URLSearchParams({ ...(drafts ? { drafts: '1' } : {}), ...(lang ? { lang } : {}) }).toString();
+      const response = await fetch(`${API_BASE_URL}/posts${qs ? `?${qs}` : ''}`, { credentials: 'include' });
       if (!response.ok) {
         let errText = response.statusText;
         try {
@@ -21,10 +23,11 @@ class PostAPI {
     }
   }
 
-  static async getPostById(id: string): Promise<PostDetail> {
+  // lang: serve the translation into it if there is one (the editor omits it)
+  static async getPostById(id: string, lang?: string): Promise<PostDetail> {
     try {
       // with the session cookie, so the admin can open unpublished posts
-      const response = await fetch(`${API_BASE_URL}/posts/${id}`, { credentials: 'include' });
+      const response = await fetch(`${API_BASE_URL}/posts/${id}${lang ? `?lang=${lang}` : ''}`, { credentials: 'include' });
       if (!response.ok) {
         let errText = response.statusText;
         try {

@@ -11,7 +11,7 @@ function BlogList() {
   const [error, setError] = useState('');
   const [params, setParams] = useSearchParams();
   const { isLoggedIn, role } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const q = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
@@ -19,10 +19,10 @@ function BlogList() {
   // The admin also sees unpublished posts (marked "draft")
   const isAdmin = isLoggedIn && role === 'admin';
   useEffect(() => {
-    PostAPI.getAllPosts(isAdmin)
+    PostAPI.getAllPosts(isAdmin, lang)
       .then(setPosts)
       .catch(() => { setPosts([]); setError('blog.loadError'); });
-  }, [isAdmin]);
+  }, [isAdmin, lang]);
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);

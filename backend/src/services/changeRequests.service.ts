@@ -170,7 +170,7 @@ class ChangeRequestService {
     if (!claimed) throw new AppError("CHANGE_REQUEST_NOT_OPEN");
 
     try {
-      const resultPost = await ChangeRequestService.apply(claimed, agentId, agent.name, admin.name, at, !!opts.publish);
+      const resultPost = await ChangeRequestService.apply(claimed, agentId, agent.name, admin.name, at, !!opts.publish, adminId);
       if (resultPost) claimed.resultPost = resultPost;
       await claimed.save();
     } catch (err) {
@@ -237,7 +237,7 @@ class ChangeRequestService {
 
   // Performs the write. Returns the post created (new, translation).
   private static async apply(
-    cr: CR, agentId: string, agentName: string, adminName: string, at: Date, publish: boolean
+    cr: CR, agentId: string, agentName: string, adminName: string, at: Date, publish: boolean, adminId: string
   ): Promise<Types.ObjectId | null> {
     const rev = current(cr);
     const f = rev.fields;
@@ -251,7 +251,8 @@ class ChangeRequestService {
       }
       await target.save();
       await CommentModel.create({
-        post: target._id,
+        // comments live on the original (shared by all its languages)
+        post: target.translationOf ?? target._id,
         author: agentId,
         content: editedComment(target.lang, agentName, adminName, at),
         published: true,
@@ -266,6 +267,7 @@ class ChangeRequestService {
         tags: f.tags ?? [], series: f.series ?? "",
         lang: cr.lang ?? DEFAULT_LANG,
         published: publish,
+        supervisor: adminId,
       });
       return post._id as Types.ObjectId;
     }
@@ -282,6 +284,7 @@ class ChangeRequestService {
         lang: cr.lang,
         translationOf: original._id,
         published: publish,
+        supervisor: adminId,
       });
       return post._id as Types.ObjectId;
     } catch (err) {

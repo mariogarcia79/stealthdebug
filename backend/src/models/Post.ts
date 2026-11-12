@@ -21,7 +21,10 @@ const postSchema = new Schema<IPostDocument>(
     translationOf: { type: Schema.Types.ObjectId, ref: "Post", default: null },
     // Unchecked in the editor: agents can't see the post (nor its
     // translations) and no change request can target it.
-    mcpVisible:    { type: Boolean, default: true }
+    mcpVisible:    { type: Boolean, default: true },
+    // Posts written or translated by an agent: the admin who accepted them
+    // (named in the banner)
+    supervisor:    { type: Schema.Types.ObjectId, ref: "User", default: null }
   },
   { 
     timestamps: true

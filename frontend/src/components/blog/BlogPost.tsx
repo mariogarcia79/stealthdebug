@@ -86,15 +86,16 @@ function BlogPost() {
   const [toggling, setToggling] = useState(false);
   const [error, setError] = useState('');
   const { isLoggedIn, role } = useAuth();
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const article = useRef<HTMLDivElement>(null);
   const isAdmin = isLoggedIn && role === 'admin';
 
   useEffect(() => {
     if (!id) return;
     setPost(undefined);
-    PostAPI.getPostById(id).then(setPost).catch(() => setPost(null));
-  }, [id]);
+    // In the site's language when the post has a translation into it
+    PostAPI.getPostById(id, lang).then(setPost).catch(() => setPost(null));
+  }, [id, lang]);
 
   useEffect(() => {
     if (post) document.title = `${post.title} · stealthdebug`;
@@ -127,7 +128,7 @@ function BlogPost() {
     setError('');
     try {
       await PostAPI.updatePost(post._id, { published: !post.published });
-      setPost(await PostAPI.getPostById(post._id));
+      setPost(await PostAPI.getPostById(post._id, lang));
     } catch {
       setError(t('post.publishFailed'));
     } finally {
@@ -141,6 +142,11 @@ function BlogPost() {
   if (post === null || (!post.published && !isAdmin)) return <NotFound />;
 
   const imageCount = Object.keys(post.images ?? {}).length;
+  const originalId = post.originalId ?? post._id;
+  const byAgent = post.author?.role === 'agent';
+  const isTranslation = post.originalId !== undefined && post.originalId !== post._id;
+  const supervisor = post.supervisor?.name ?? '';
+  const others = (post.languages ?? []).filter((l) => l.lang !== post.lang && (l.published || isAdmin));
 
   return (
     <div className="wrap">
@@ -180,6 +186,7 @@ function BlogPost() {
         <p className="lead">{post.summary}</p>
         <div className="post-meta">
           <time dateTime={post.createdAt}>{isoDate(post.createdAt)}</time>
+          {post.author?.name && <span className="byline">{t('post.by', { name: isTranslation && post.originalAuthor ? post.originalAuthor.name : post.author.name })}</span>}
           <span>{t('post.minRead', { n: post.readingMinutes })}</span>
           {post.series && (post.series.part > 0
             ? <span className="series">{t('post.series', { name: post.series.name, part: post.series.part, total: post.series.total })}</span>
@@ -192,6 +199,21 @@ function BlogPost() {
             </span>
           )}
         </div>
+        {byAgent && !isTranslation && (
+          <p className="agent-banner" role="note">{t('post.agentWrote', { agent: post.author!.name, admin: supervisor })}</p>
+        )}
+        {byAgent && isTranslation && (
+          <p className="agent-banner" role="note">
+            {t('post.agentTranslated', { agent: post.author!.name, admin: supervisor, from: t(`lang.${post.originalLang ?? 'en'}`) })}{' '}
+            <button className="link" onClick={() => setLang(post.originalLang ?? 'en')}>{t('post.readOriginal')}</button>
+          </p>
+        )}
+        {others.length > 0 && (
+          <p className="also-in">
+            {t('post.alsoIn')}{' '}
+            {others.map((l) => <button key={l.lang} className="link" lang={l.lang} onClick={() => setLang(l.lang)}>{t(`lang.${l.lang}`)}</button>)}
+          </p>
+        )}
         {!post.published && <p className="alert draft-notice" style={{ marginTop: 18 }}>{t('post.draftNotice')}</p>}
         {error && <p className="alert error" style={{ marginTop: 18 }}>{error}</p>}
       </header>
@@ -203,8 +225,8 @@ function BlogPost() {
               <span className="label">{t('post.seriesLabel')} · <b>{post.series.name}</b></span>
               <ol>
                 {post.series.posts.map((p) => (
-                  <li key={p._id} className={p._id === post._id ? 'current' : ''}>
-                    {p._id === post._id ? p.title : <Link to={`/blog/${p._id}`}>{p.title}</Link>}
+                  <li key={p._id} className={p._id === originalId ? 'current' : ''}>
+                    {p._id === originalId ? p.title : <Link to={`/blog/${p._id}`}>{p.title}</Link>}
                   </li>
                 ))}
               </ol>
@@ -228,7 +250,8 @@ function BlogPost() {
                 )}
               </nav>
             )}
-            <BlogCommentList postId={post._id} />
+            {/* comments belong to the original, whatever the language shown */}
+            <BlogCommentList postId={originalId} />
           </footer>
         </article>
         <aside><Toc key={post._id} article={article} /></aside>

@@ -27,8 +27,12 @@ export interface Post {
   updatedAt:  string;
 }
 
+export interface PostPerson { _id: string; name: string; role: string }
+export interface PostLanguage { _id: string; lang: 'en' | 'es'; published: boolean }
+
 // GET /posts (list): metadata only
 export interface PostSummary extends Omit<Post, 'content'> {
+  author?:        PostPerson;
   readingMinutes: number;
   cover: (Partial<PostImageInfo> & { url: string }) | null;   // first image
 }
@@ -36,6 +40,12 @@ export interface PostSummary extends Omit<Post, 'content'> {
 // GET /posts/:id
 export interface PostDetail extends Omit<Post, 'series'> {
   images?:        PostImages;
+  author?:        PostPerson;
+  supervisor?:    PostPerson | null;   // admin who accepted an agent's post / translation
+  originalId?:    string;              // id of the original (comments, series, links)
+  originalAuthor?: PostPerson | null;  // translations: who wrote the original
+  originalLang?:  'en' | 'es';
+  languages?:     PostLanguage[];      // the original and its translations
   readingMinutes: number;
   series:         PostSeries | null;
   prev:           PostLink | null;   // older

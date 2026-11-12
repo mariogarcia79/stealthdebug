@@ -172,3 +172,23 @@ class PostService {
 }
 
 export default PostService;
+
+// ---- languages: a post and its translations are one post shown in the
+// reader's language where possible
+
+export interface PostVariant { _id: Types.ObjectId; lang: string; published: boolean }
+
+export class PostLanguages {
+  // The original and its translations (published only, unless drafts)
+  static async variants(originalId: Types.ObjectId, drafts: boolean): Promise<PostVariant[]> {
+    const filter: Record<string, unknown> = { $or: [{ _id: originalId }, { translationOf: originalId }] };
+    if (!drafts) filter.published = true;
+    return PostModel.find(filter).select("_id lang published").sort({ createdAt: 1 }).lean() as unknown as PostVariant[];
+  }
+
+  // Published translations into `lang` of these originals, by original id
+  static async translationsIn(lang: string, originals: Types.ObjectId[]): Promise<Map<string, IPostDocument>> {
+    const list = await PostModel.find({ translationOf: { $in: originals }, lang, published: true });
+    return new Map(list.map((p) => [String(p.translationOf), p]));
+  }
+}

@@ -43,11 +43,11 @@ function Hexdump() {
 function Home() {
   const { isLoggedIn, role } = useAuth();
   const [posts, setPosts] = useState<PostSummary[] | null>(null);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   useEffect(() => {
-    PostAPI.getAllPosts().then(setPosts).catch(() => setPosts([]));
-  }, []);
+    PostAPI.getAllPosts(false, lang).then(setPosts).catch(() => setPosts([]));
+  }, [lang]);
 
   const latest = posts?.[0];
   const tags = [...new Set((posts ?? []).flatMap((p) => p.tags))].slice(0, 8);
