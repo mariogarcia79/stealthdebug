@@ -1,6 +1,7 @@
 import { FilterQuery, Types, SortOrder } from "mongoose";
 import CommentModel, { ICommentDocument } from "../models/Comment";
 import { IComment } from "../types/comment";
+import { AppError } from "../config/errors";
 
 import {
   isObjectId,
@@ -89,79 +90,47 @@ class CommentService {
       .populate("author", "name");
   }
 
+  // null when there is no such comment
   static async getCommentById(id: string): Promise<ICommentDocument | null> {
     if (!isObjectId(id)) return null;
-
-    try {
-      return CommentModel.findById(id)
-        .populate("author", "name");
-    } catch (err) {
-      console.error("Error: getCommentById:", err);
-      return null;
-    }
+    return CommentModel.findById(id).populate("author", "name");
   }
 
-  static async patchCommentById(
-    id: string,
-    partial: Partial<ICommentDocument>
-  ): Promise<ICommentDocument | null> {
+  // A published comment of this post, or COMMENT_NOT_FOUND
+  static async getCommentOfPost(postId: string, id: string): Promise<ICommentDocument> {
+    const comment = await CommentService.getCommentById(id);
+    if (!comment || comment.post.toString() !== postId) throw new AppError("COMMENT_NOT_FOUND");
+    return comment;
+  }
+
+  // Author's user id, or null when there is no such comment (ownership checks)
+  static async getAuthorId(id: string): Promise<string | null> {
     if (!isObjectId(id)) return null;
-
-    const updateData: Partial<ICommentDocument> = {};
-    if (partial.content !== undefined) {
-      updateData.content = sanitizeMongoInput(sanitizeText(partial.content));
-    }
-    if (partial.published !== undefined) {
-      updateData.published = partial.published;
-    }
-
-    try {
-      return CommentModel.findByIdAndUpdate(id, updateData, {
-        new: true
-      }).populate("author", "name");
-    } catch (err) {
-      console.error("Error: patchCommentById:", err);
-      return null;
-    }
+    const comment = await CommentModel.findById(id).select("author").lean();
+    return comment ? comment.author.toString() : null;
   }
 
-  static async createComment(data: Partial<IComment>): Promise<ICommentDocument | null> {
-    if (!data.author || !isObjectId(String(data.author))) {
-      console.error("Error: createComment: invalid author");
-      return null;
-    }
-
-    try {
-      const newComment = new CommentModel({
-        author: data.author,
-        post: data.post,
-        content: sanitizeMongoInput(sanitizeText(data.content)),
-        published: data.published ?? true
-      });
-
-      const saved = await newComment.save();
-
-      return saved.populate("author", "name");
-    } catch (err) {
-      console.error("Error: createComment:", err);
-      return null;
-    }
+  // content is already validated and sanitised by the controller
+  static async patchCommentById(id: string, fields: { content?: string }): Promise<ICommentDocument> {
+    const update: Partial<IComment> = {};
+    if (fields.content !== undefined) update.content = fields.content;
+    const comment = isObjectId(id)
+      ? await CommentModel.findByIdAndUpdate(id, update, { new: true }).populate("author", "name")
+      : null;
+    if (!comment) throw new AppError("COMMENT_NOT_FOUND");
+    return comment;
   }
 
-  static async deleteCommentById(id: string): Promise<boolean> {
-    if (!isObjectId(id)) return false;
+  static async createComment(data: { author: Types.ObjectId; post: Types.ObjectId; content: string }): Promise<ICommentDocument> {
+    const saved = await CommentModel.create({ ...data, published: true });
+    return saved.populate("author", "name");
+  }
 
-    try {
-      const result = await CommentModel.updateOne(
-        { _id: id },
-        { published: false }
-      );
-
-      return result.modifiedCount > 0;
-    } catch (err) {
-      console.error("Error: deleteCommentById:", err);
-      return false;
-    }
+  // Comments are hidden (published: false), not removed: the post page
+  // stops showing them. (Account deletion removes them for real.)
+  static async deleteCommentById(id: string): Promise<void> {
+    if (!isObjectId(id)) throw new AppError("COMMENT_NOT_FOUND");
+    await CommentModel.updateOne({ _id: id }, { published: false });
   }
 }
 

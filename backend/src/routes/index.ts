@@ -7,7 +7,7 @@ import uploadsRoutes from "./uploads.routes";
 import mediaRoutes from "./media.routes";
 import pagesRoutes from "./pages.routes";
 import SitemapController from "../controllers/sitemap.controller";
-import { authenticate, checkRole } from "../middleware/auth.middleware";
+import { notFoundHandler } from "../middleware/error.middleware";
 
 const router = Router();
 
@@ -19,5 +19,8 @@ router.use( "/uploads", uploadsRoutes);
 router.use( "/media",   mediaRoutes);
 router.use( "/pages",   pagesRoutes);
 router.get( "/sitemap.xml", SitemapController.getSitemap);
+
+// Anything else under /api: JSON 404
+router.use(notFoundHandler);
 
 export default router;

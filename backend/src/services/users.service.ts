@@ -3,44 +3,32 @@ import { FilterQuery, SortOrder } from "mongoose";
 import UserModel, { IUserDocument } from "../models/User";
 import CommentModel from "../models/Comment";
 import { IUser } from "../types/user";
+import { UserRole } from "../types/userRole";
+import { AppError } from "../config/errors";
 
 import {
   isObjectId,
   sanitizeText,
   sanitizeMongoInput,
-  escapeRegex,
-  isValidEmail
+  escapeRegex
 } from "../utils/validation";
 
 class UserService {
   
-  private static buildFilter(filter?: Partial<IUser>): FilterQuery<IUser> {
+  // name/email: case-insensitive "contains"; role: exact match
+  private static buildFilter(filter?: { name?: string; email?: string; role?: UserRole }): FilterQuery<IUser> {
     const mongoFilter: FilterQuery<IUser> = {};
     if (!filter) return mongoFilter;
-    
-    const allowedFields: (keyof IUser)[] = ["name", "email", "role"];
-    
+    if (filter.role) mongoFilter.role = filter.role;
+
+    const allowedFields = ["name", "email"] as const;
+
     for (const key of allowedFields) {
       const value = filter[key];
       if (value == null) continue;
       
-      if (typeof value === "boolean") {
-        mongoFilter[key] = value;
-        continue;
-      }
-      
-      if (typeof value === "string") {
-        const safeStr = sanitizeMongoInput(sanitizeText(value));
-        
-        if (key === "email" && !isValidEmail(safeStr)) continue;
-        
-        mongoFilter[key] = new RegExp(escapeRegex(safeStr), "i");
-        continue;
-      }
-      
-      if (value instanceof RegExp) {
-        mongoFilter[key] = value;
-      }
+      const safeStr = sanitizeMongoInput(sanitizeText(value));
+      if (safeStr) mongoFilter[key] = new RegExp(escapeRegex(safeStr), "i");
     }
     
     return mongoFilter;
@@ -53,7 +41,7 @@ class UserService {
     skip = 0
   }: {
     sorted?: boolean;
-    filter?: Partial<IUser>;
+    filter?: { name?: string; email?: string; role?: UserRole };
     limit?: number;
     skip?: number;
   }): Promise<IUserDocument[]> {
@@ -66,95 +54,59 @@ class UserService {
     return UserModel.find(mongoFilter).sort(sortOrder).skip(skip).limit(limit);
   }
   
+  // null when there is no such user
   static async getUserById(id: string): Promise<IUserDocument | null> {
     if (!isObjectId(id)) return null;
-    
-    try {
-      return await UserModel.findById(id);
-    } catch (err) {
-      console.error("Error: getUserById:", err);
-      return null;
-    }
+    return UserModel.findById(id);
   }
-  
+
   static async getUserByName(name: string): Promise<IUserDocument | null> {
     const safeName = sanitizeMongoInput(sanitizeText(name));
-    try {
-      return await UserModel.findOne({ name: new RegExp(`^${escapeRegex(safeName)}$`, "i") });
-    } catch (err) {
-      console.error("Error: getUserByName:", err);
-      return null;
-    }
+    return UserModel.findOne({ name: new RegExp(`^${escapeRegex(safeName)}$`, "i") });
   }
-  
-  static async patchUserById(id: string, partial: Partial<IUser>): Promise<IUserDocument | null> {
-    if (!isObjectId(id)) return null;
 
-    // "hash" is intentionally excluded — password changes go through updateUserPassword only
-    const allowedFields: (keyof IUser)[] = ["name", "email"];
-    const updateData: Partial<Record<keyof IUser, any>> = {};
-    
-    for (const key of allowedFields) {
-      const value = partial[key];
-      if (value === undefined) continue;
-      
-      if (typeof value === "string") {
-        if (key === "email" && !isValidEmail(value)) continue;
-        updateData[key] = sanitizeMongoInput(sanitizeText(value));
-      } else {
-        updateData[key] = value;
-      }
-    }
-    
+  // Profile fields only: the role and the password hash are never changed
+  // here (passwords go through updateUserPassword). Input is already
+  // validated by the controller.
+  static async patchUserById(id: string, fields: { name?: string; email?: string }): Promise<IUserDocument> {
+    const update: { name?: string; email?: string } = {};
+    if (fields.name !== undefined) update.name = fields.name;
+    if (fields.email !== undefined) update.email = fields.email;
     try {
-      return await UserModel.findByIdAndUpdate(id, updateData, { new: true });
+      const user = isObjectId(id) ? await UserModel.findByIdAndUpdate(id, update, { new: true }) : null;
+      if (!user) throw new AppError("USER_NOT_FOUND");
+      return user;
     } catch (err) {
-      console.error("Error: patchUserById:", err);
-      return null;
+      throw UserService.duplicateToConflict(err);
     }
   }
-  
-  static async updateUserPassword(
-    id: string,
-    currentPassword: string,
-    newPassword: string
-  ): Promise<boolean> {
-    if (!isObjectId(id)) return false;
-    
-    try {
-      const user = await UserModel.findById(id);
-      if (!user) return false;
-      
-      const isMatch = await bcrypt.compare(currentPassword, user.hash);
-      if (!isMatch) return false;
-      
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
-      
-      user.hash = hashedPassword;
-      await user.save();
-      
-      return true;
-    } catch (err) {
-      console.error("Error: updateUserPassword:", err);
-      return false;
-    }
+
+  static async updateUserPassword(id: string, currentPassword: unknown, newPassword: string): Promise<void> {
+    const user = isObjectId(id) ? await UserModel.findById(id) : null;
+    if (!user) throw new AppError("USER_NOT_FOUND");
+
+    const isMatch = typeof currentPassword === "string" && await bcrypt.compare(currentPassword, user.hash);
+    if (!isMatch) throw new AppError("INCORRECT_PASSWORD");
+
+    user.hash = await UserService.hashPassword(newPassword);
+    await user.save();
   }
-  
-  static async deleteUserById(id: string): Promise<boolean> {
-    if (!isObjectId(id)) return false;
-    
-    try {
-      // Right to erasure: the account and everything the user wrote go
-      // together (comments are deleted, not just hidden or anonymised).
-      if (!(await UserModel.exists({ _id: id }))) return false;
-      await CommentModel.deleteMany({ author: id });
-      const result = await UserModel.deleteOne({ _id: id });
-      return result.deletedCount === 1;
-    } catch (err) {
-      console.error("Error: deleteUserById:", err);
-      return false;
-    }
+
+  static async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
+  }
+
+  // Unique index violation on name/email -> 409 "User already exists"
+  static duplicateToConflict(err: unknown): unknown {
+    return (err as { code?: number })?.code === 11000 ? new AppError("USER_ALREADY_EXISTS") : err;
+  }
+
+  static async deleteUserById(id: string): Promise<void> {
+    if (!isObjectId(id) || !(await UserModel.exists({ _id: id }))) throw new AppError("USER_NOT_FOUND");
+    // Right to erasure: the account and everything the user wrote go
+    // together (comments are deleted, not just hidden or anonymised).
+    await CommentModel.deleteMany({ author: id });
+    await UserModel.deleteOne({ _id: id });
   }
 }
 

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ValidationError } from '../config/errors';
 import {
   MIN_NAME_LENGTH,
   MAX_NAME_LENGTH,
@@ -9,15 +10,15 @@ import {
 } from '../config/validation';
 
 export function validateName (name: string): string {
-  if (!name) throw new Error("Name is required");
-  if (typeof name !== 'string') throw new Error("Name must be a string");
+  if (!name) throw new ValidationError("Name is required");
+  if (typeof name !== 'string') throw new ValidationError("Name must be a string");
 
   let cleanName = name.trim();
 
   if (cleanName.length < MIN_NAME_LENGTH)
-    throw new Error(`Name must be at least ${MIN_NAME_LENGTH} characters long`);
+    throw new ValidationError(`Name must be at least ${MIN_NAME_LENGTH} characters long`);
   if (cleanName.length > MAX_NAME_LENGTH)
-    throw new Error(`Name must be at most ${MAX_NAME_LENGTH} characters long`);
+    throw new ValidationError(`Name must be at most ${MAX_NAME_LENGTH} characters long`);
 
   cleanName = sanitizeText(cleanName);
   cleanName = sanitizeMongoInput(cleanName);
@@ -26,18 +27,18 @@ export function validateName (name: string): string {
 }
 
 export function validateEmail(email: string): string {
-  if (!email) throw new Error("Email is required");
-  if (typeof email !== 'string') throw new Error("Email must be a string");
+  if (!email) throw new ValidationError("Email is required");
+  if (typeof email !== 'string') throw new ValidationError("Email must be a string");
 
   let cleanEmail = email.trim().toLowerCase();
 
   if (cleanEmail.length < MIN_EMAIL_LENGTH)
-    throw new Error(`Email must be at least ${MIN_EMAIL_LENGTH} characters long`);
+    throw new ValidationError(`Email must be at least ${MIN_EMAIL_LENGTH} characters long`);
   if (cleanEmail.length > MAX_EMAIL_LENGTH)
-    throw new Error(`Email must be at most ${MAX_EMAIL_LENGTH} characters long`);
+    throw new ValidationError(`Email must be at most ${MAX_EMAIL_LENGTH} characters long`);
 
   if (!isValidEmail(cleanEmail))
-    throw new Error("Invalid email format");
+    throw new ValidationError("Invalid email format");
 
   cleanEmail = sanitizeText(cleanEmail);
   cleanEmail = sanitizeMongoInput(cleanEmail);
@@ -45,33 +46,36 @@ export function validateEmail(email: string): string {
 }
 
 export function validatePassword(password: string): string {
-  if (!password) throw new Error("Password is required");
-  if (typeof password !== 'string') throw new Error("Password must be a string");
+  if (!password) throw new ValidationError("Password is required");
+  if (typeof password !== 'string') throw new ValidationError("Password must be a string");
 
   if (password.length < MIN_PASSWORD_LENGTH)
-    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+    throw new ValidationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
   if (password.length > MAX_PASSWORD_LENGTH)
-    throw new Error(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
+    throw new ValidationError(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
 
   if (!/[A-Z]/.test(password))
-    throw new Error("Password must contain at least one uppercase letter");
+    throw new ValidationError("Password must contain at least one uppercase letter");
   if (!/[0-9]/.test(password))
-    throw new Error("Password must contain at least one digit");
+    throw new ValidationError("Password must contain at least one digit");
   if (!/[^A-Za-z0-9]/.test(password))
-    throw new Error("Password must contain at least one special character");
+    throw new ValidationError("Password must contain at least one special character");
 
   return password;
 }
 
-export function validateInput(content: string | undefined, isMd: boolean, maxLen: number): string {
-  if (!content) throw new Error("Comment content is required");
-  if (typeof content !== 'string') throw new Error("Comment content must be a string");
+// Required text field: trimmed, length-checked and sanitised (markdown keeps
+// its formatting; plain text loses HTML and control characters). "field" names
+// the field in error messages ("Title is required").
+export function validateInput(content: unknown, isMd: boolean, maxLen: number, field = "Content"): string {
+  if (content === undefined || content === null || content === '') throw new ValidationError(`${field} is required`);
+  if (typeof content !== 'string') throw new ValidationError(`${field} must be a string`);
 
   let cleanContent = content.trim();
   if (cleanContent.length === 0)
-    throw new Error("Comment content cannot be empty");
+    throw new ValidationError(`${field} cannot be empty`);
   if (cleanContent.length > maxLen)
-    throw new Error(`Comment content must be at most ${maxLen} characters long`);
+    throw new ValidationError(`${field} must be at most ${maxLen} characters long`);
 
   if (isMd) {
     cleanContent = sanitizeMongoInput(cleanContent);

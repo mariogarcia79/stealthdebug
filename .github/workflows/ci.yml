@@ -51,6 +51,20 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-24.04
+    # Route tests run the real app against a real MongoDB (same major version
+    # as production, services/mongo.container). No auth: test data only.
+    services:
+      mongo:
+        image: docker.io/library/mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      MONGO_TEST_URI: mongodb://127.0.0.1:27017
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

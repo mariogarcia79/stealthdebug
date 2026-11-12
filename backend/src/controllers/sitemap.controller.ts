@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import PostModel from "../models/Post";
-import PageModel from "../models/Page";
+import PostService from "../services/posts.service";
+import PageService from "../services/pages.service";
+import { env } from "../config/env";
 
 // Public address of the site, used in the sitemap's absolute URLs
-const SITE_URL = (process.env.SITE_URL || "https://stealthdebug.org").replace(/\/+$/, "");
+const SITE_URL = env.siteUrl;
 
 // Pages that aren't posts. Legal pages are listed once (the same URL serves
 // both languages; the visitor's choice or ?lang= picks one).
@@ -34,17 +35,14 @@ class SitemapController {
   // GET /api/sitemap.xml (served at /sitemap.xml by nginx): published posts only
   static async getSitemap(_req: Request, res: Response): Promise<Response> {
     try {
-      const posts = await PostModel.find({ published: true })
-        .select("_id updatedAt createdAt")
-        .sort({ createdAt: -1 })
-        .lean();
+      const posts = await PostService.listPublishedForSitemap();
       const newest = posts.reduce<Date | undefined>((max, p) => {
         const d = (p.updatedAt ?? p.createdAt) as Date | undefined;
         return d && (!max || d > max) ? d : max;
       }, undefined);
 
       // The about page is listed once it has content
-      const about = await PageModel.findOne({ slug: "about" }).select("content updatedAt").lean();
+      const about = await PageService.get("about");
 
       const entries = [
         ...STATIC_PAGES.map((p) =>

@@ -23,6 +23,8 @@ export const ERRORS = {
   BAD_REQUEST:          { message: 'Bad request',                   status: 400 },
   FORBIDDEN:            { message: 'Forbidden',                     status: 403 },
   NOT_FOUND:            { message: 'Not found',                     status: 404 },
+  INVALID_JSON:         { message: 'Request body is not valid JSON', status: 400 },
+  PAYLOAD_TOO_LARGE:    { message: 'Request body too large',        status: 413 },
 } as const;
 
 export type ErrorKey = keyof typeof ERRORS;
@@ -36,3 +38,32 @@ export const sendError = (
   const message = overrideMessage || entry.message;
   return res.status(entry.status).json({ error: message });
 };
+
+
+// Errors with a known meaning. Services and controllers throw these; the error
+// middleware (middleware/error.middleware.ts) turns them into the response
+// { error: message } with the status from ERRORS. Anything else thrown is an
+// unexpected failure: logged, and answered with a generic 500.
+export class AppError extends Error {
+  readonly key: ErrorKey;
+  readonly status: number;
+  // Extra fields merged into the JSON response (e.g. usedIn for media)
+  readonly details?: Record<string, unknown>;
+
+  constructor(key: ErrorKey, message?: string, details?: Record<string, unknown>) {
+    super(message || ERRORS[key].message);
+    this.name = "AppError";
+    this.key = key;
+    this.status = ERRORS[key].status;
+    this.details = details;
+  }
+}
+
+// Invalid client input (400). The message is shown to the user, so it must
+// describe the problem without revealing internals.
+export class ValidationError extends AppError {
+  constructor(message: string) {
+    super("INVALID_INPUT", message);
+    this.name = "ValidationError";
+  }
+}

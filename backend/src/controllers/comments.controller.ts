@@ -3,180 +3,80 @@ import { Types } from "mongoose";
 
 import CommentService from "../services/comments.service";
 import PostService from "../services/posts.service";
-import { IComment } from "../types/comment";
 import { MAX_COMMENT_LENGTH } from "../config/validation";
+import { validateInput, isObjectId } from "../utils/validation";
+import { AppError } from "../config/errors";
 
-import { 
-  validateInput,
-  isObjectId
-} from "../utils/validation";
-import { sendError } from "../config/errors";
-
+function checkIds(postId: string, id?: string): void {
+  if (!isObjectId(postId)) throw new AppError("INVALID_POST_ID");
+  if (id !== undefined && !isObjectId(id)) throw new AppError("INVALID_COMMENT_ID");
+}
 
 class CommentController {
 
   static async getAllComments(req: Request, res: Response): Promise<Response> {
     const postId = req.params.postId;
-
-    if (!isObjectId(postId)) {
-      return sendError(res, 'INVALID_POST_ID');
-    }
+    checkIds(postId);
 
     const page  = Math.max(1, parseInt(req.query.page  as string) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
     const skip  = (page - 1) * limit;
 
-    try {
-      // Comments of an unpublished (or missing) post are hidden like the post
-      if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) {
-        return sendError(res, 'POST_NOT_FOUND');
-      }
-      const comments = await CommentService.getAllComments({
-        sorted: true,
-        filter: { post: new Types.ObjectId(postId) },
-        limit,
-        skip
-      });
+    // Comments of an unpublished (or missing) post are hidden like the post
+    if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) throw new AppError("POST_NOT_FOUND");
 
-      return res.json(comments);
-    } catch (err) {
-      console.error(err);
-      return sendError(res, 'UNKNOWN_ERROR');
-    }
+    const comments = await CommentService.getAllComments({
+      sorted: true,
+      filter: { post: new Types.ObjectId(postId) },
+      limit,
+      skip,
+    });
+    return res.json(comments);
   }
 
   static async getCommentById(req: Request, res: Response): Promise<Response> {
     const { postId, id } = req.params;
-
-    if (!isObjectId(postId)) {
-      return sendError(res, 'INVALID_POST_ID');
-    }
-    
-    if (!isObjectId(id)) { 
-      return sendError(res, 'INVALID_COMMENT_ID');
-    }
-
-    try {
-      const comment = await CommentService.getCommentById(id);
-
-      if (!comment || comment.post.toString() !== postId) {
-        return sendError(res, 'COMMENT_NOT_FOUND');
-      }
-
-      return res.json(comment);
-
-    } catch (err) {
-      console.error(err);
-      return sendError(res, 'UNKNOWN_ERROR');
-    }
+    checkIds(postId, id);
+    return res.json(await CommentService.getCommentOfPost(postId, id));
   }
 
   static async createComment(req: Request, res: Response): Promise<Response> {
     const userId = req.user?._id;
     const postId = req.params.postId;
-    const { content } = req.body;
+    if (!isObjectId(userId)) throw new AppError("UNAUTHORIZED");
+    if (!isObjectId(postId)) throw new AppError("INVALID_POST");
 
-    if (!isObjectId(userId)) {
-      return sendError(res, 'UNAUTHORIZED');
-    }
+    // Only published posts (or any post, for the admin) accept comments
+    if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) throw new AppError("POST_NOT_FOUND");
+    const content = validateInput(req.body?.content, false, MAX_COMMENT_LENGTH, "Comment");
 
-    if (!isObjectId(postId)) {
-      return sendError(res, 'INVALID_POST');
-    }
-
-    try {
-      // Only published posts (or any post, for the admin) accept comments
-      if (!(await PostService.isVisible(postId, req.user?.role === "admin"))) {
-        return sendError(res, 'POST_NOT_FOUND');
-      }
-      const cleanContent = validateInput(content, false, MAX_COMMENT_LENGTH);
-
-      const newComment = await CommentService.createComment({
-        author: new Types.ObjectId(userId),
-        post: new Types.ObjectId(postId),
-        content: cleanContent,
-      });
-
-      if (!newComment) {
-        return sendError(res, 'FAILED_CREATE_COMMENT');
-      }
-
-      return res
-        .status(201)
-        .json(newComment);
-
-    } catch (err) {
-      console.error(err);
-      return sendError(res, 'UNKNOWN_ERROR');
-    }
+    const comment = await CommentService.createComment({
+      author: new Types.ObjectId(userId),
+      post: new Types.ObjectId(postId),
+      content,
+    });
+    return res.status(201).json(comment);
   }
 
   static async patchCommentById(req: Request, res: Response): Promise<Response> {
     const { postId, id } = req.params;
-    const body: Partial<IComment> = {};
-    
-    if (!isObjectId(postId)) {
-      return sendError(res, 'INVALID_POST_ID');
+    checkIds(postId, id);
+
+    const fields: { content?: string } = {};
+    if (req.body?.content !== undefined) {
+      fields.content = validateInput(req.body.content, false, MAX_COMMENT_LENGTH, "Comment");
     }
-    
-    if (!isObjectId(id)) {
-      return sendError(res, 'INVALID_COMMENT_ID');
-    }
-
-    if (req.body.content !== undefined) {
-      try {
-        body.content = validateInput(req.body.content, false, MAX_COMMENT_LENGTH);
-      } catch (err) {
-        return res
-          .status(400)
-          .json({ error: (err as Error).message });
-      }
-    }
-
-    try {
-      const comment = await CommentService.getCommentById(id);
-
-      if (!comment || comment.post.toString() !== postId) {
-        return sendError(res, 'COMMENT_NOT_FOUND');
-      }
-
-      const updatedComment = await CommentService.patchCommentById(id, body);
-      return res.json(updatedComment);
-
-    } catch (err) {
-      console.error(err);
-      return sendError(res, 'UNKNOWN_ERROR');
-    }
+    await CommentService.getCommentOfPost(postId, id);
+    return res.json(await CommentService.patchCommentById(id, fields));
   }
 
   static async deleteCommentById(req: Request, res: Response): Promise<Response> {
     const { postId, id } = req.params;
+    checkIds(postId, id);
 
-    if (!isObjectId(postId)) {
-      return sendError(res, 'INVALID_POST_ID');
-    }
-    
-    if (!isObjectId(id)) {
-      return sendError(res, 'INVALID_COMMENT_ID');
-    }
-
-    try {
-      const comment = await CommentService.getCommentById(id);
-
-      if (!comment || comment.post.toString() !== postId) {
-        return sendError(res, 'COMMENT_NOT_FOUND');
-      }
-
-      await CommentService.deleteCommentById(id);
-
-      return res
-        .status(204)
-        .send();
-
-    } catch (err) {
-      console.error(err);
-      return sendError(res, 'UNKNOWN_ERROR');
-    }
+    await CommentService.getCommentOfPost(postId, id);
+    await CommentService.deleteCommentById(id);
+    return res.status(204).send();
   }
 }
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { asyncHandler } from "../middleware/error.middleware";
 import { authenticate, checkRole } from "../middleware/auth.middleware";
 import { upload } from "../middleware/uploads.middleware";
 import MediaController from "../controllers/media.controller";
@@ -9,9 +10,9 @@ const router = Router();
 
 router.use(authenticate, checkRole("admin"));
 
-router.get(   "/",     MediaController.list);
-router.post(  "/",     upload, MediaController.upload);
-router.patch( "/:id",  MediaController.update);
-router.delete("/:id",  MediaController.remove);
+router.get(   "/",     asyncHandler(MediaController.list));
+router.post(  "/",     upload, asyncHandler(MediaController.upload));
+router.patch( "/:id",  asyncHandler(MediaController.update));
+router.delete("/:id",  asyncHandler(MediaController.remove));
 
 export default router;

@@ -2,14 +2,18 @@ import { FilterQuery, Types, SortOrder } from "mongoose";
 import PostModel, { IPostDocument } from "../models/Post";
 import CommentModel from "../models/Comment";
 import { IPost } from "../types/post";
+import { AppError } from "../config/errors";
 
 import {
   isObjectId,
   sanitizeText,
-  sanitizeMarkdown,
   sanitizeMongoInput,
   escapeRegex
 } from "../utils/validation";
+
+// Input to createPost/patchPostById is already validated and sanitised by the
+// controller (utils/validation, utils/postMeta); the service trusts it.
+type PostFields = Pick<IPost, "title" | "summary" | "content" | "published" | "tags" | "series">;
 
 class PostService {
 
@@ -89,60 +93,32 @@ class PostService {
     return !!(await PostModel.exists(filter));
   }
 
+  // null when there is no such post
   static async getPostById(id: string): Promise<IPostDocument | null> {
     if (!isObjectId(id)) return null;
-    try {
-      return await PostModel.findById(id);
-    } catch (err) {
-      console.error("Error: getPostById:", err);
-      return null;
-    }
+    return PostModel.findById(id);
   }
 
-  static async patchPostById(
-    id: string,
-    partial: Partial<IPostDocument>
-  ): Promise<IPostDocument | null> {
-    if (!isObjectId(id)) return null;
-
-    const updateData: Partial<IPostDocument> = {};
-    if (partial.title !== undefined) updateData.title = sanitizeText(partial.title);
-    if (partial.summary !== undefined) updateData.summary = sanitizeText(partial.summary);
-    if (partial.content !== undefined) updateData.content = sanitizeMarkdown(partial.content);
-    if (partial.published !== undefined) updateData.published = partial.published;
-    if (partial.tags !== undefined) updateData.tags = partial.tags;
-    if (partial.series !== undefined) updateData.series = partial.series;
-
-    try {
-      return await PostModel.findByIdAndUpdate(id, updateData, { new: true });
-    } catch (err) {
-      console.error("Error: patchPostById:", err);
-      return null;
+  static async patchPostById(id: string, fields: Partial<PostFields>): Promise<IPostDocument> {
+    const update: Partial<PostFields> = {};
+    for (const key of ["title", "summary", "content", "published", "tags", "series"] as const) {
+      if (fields[key] !== undefined) (update as Record<string, unknown>)[key] = fields[key];
     }
+    const post = isObjectId(id) ? await PostModel.findByIdAndUpdate(id, update, { new: true }) : null;
+    if (!post) throw new AppError("POST_NOT_FOUND");
+    return post;
   }
 
-  static async createPost(data: Partial<IPost>): Promise<IPostDocument | null> {
-    if (!data.author || !isObjectId(String(data.author))) {
-      console.error("Error: createPost: invalid author");
-      return null;
-    }
+  static async createPost(author: Types.ObjectId, fields: PostFields): Promise<IPostDocument> {
+    return PostModel.create({ author, ...fields });
+  }
 
-    try {
-      const newPost = new PostModel({
-        author: data.author,
-        title: sanitizeText(data.title),
-        summary: sanitizeText(data.summary),
-        content: sanitizeMarkdown(data.content),
-        published: data.published ?? true,
-        tags: data.tags ?? [],
-        series: data.series ?? ""
-      });
-
-      return await newPost.save();
-    } catch (err) {
-      console.error("Error: createPost:", err);
-      return null;
-    }
+  // _id and dates of every published post, newest first (sitemap)
+  static async listPublishedForSitemap(): Promise<{ _id: Types.ObjectId; createdAt?: Date; updatedAt?: Date }[]> {
+    return PostModel.find({ published: true })
+      .select("_id updatedAt createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
   // Published posts in the same series, oldest first (part 1, 2, ...).
@@ -171,15 +147,15 @@ class PostService {
   // first, so a live post (and its readers' comments) can't be destroyed by
   // one click. The post's comments are deleted with it. Its images stay in
   // the media library (shown as unused there).
-  static async deletePostById(id: string): Promise<"deleted" | "published" | "not-found"> {
-    if (!isObjectId(id)) return "not-found";
+  static async deletePostById(id: string): Promise<void> {
+    if (!isObjectId(id)) throw new AppError("POST_NOT_FOUND");
 
     const deleted = await PostModel.findOneAndDelete({ _id: id, published: false });
     if (deleted) {
       await CommentModel.deleteMany({ post: deleted._id });
-      return "deleted";
+      return;
     }
-    return (await PostModel.exists({ _id: id })) ? "published" : "not-found";
+    throw new AppError((await PostModel.exists({ _id: id })) ? "POST_IS_PUBLISHED" : "POST_NOT_FOUND");
   }
 }
 

@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import routes from "./routes/index";
 import compression from "compression";
+import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
 
@@ -15,5 +16,8 @@ app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
 app.use("/api", routes);
+
+// Must come last: turns every thrown/forwarded error into a JSON response
+app.use(errorHandler);
 
 export default app;

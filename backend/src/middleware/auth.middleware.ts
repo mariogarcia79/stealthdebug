@@ -1,15 +1,13 @@
 import { Request, Response, NextFunction } from "express";
-import mongoose from "mongoose";
 import UserService from "../services/users.service";
-import CommentModel from "../models/Comment";
+import CommentService from "../services/comments.service";
 import jwt from "jsonwebtoken";
-import { ERRORS, sendError } from "../config/errors";
+import { sendError } from "../config/errors";
+import { env } from "../config/env";
+import { isObjectId } from "../utils/validation";
 import { isTokenBlacklisted } from "./tokenBlacklist";
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("FATAL: JWT_SECRET environment variable must be set");
-}
-const secret = process.env.JWT_SECRET;
+const secret = env.jwtSecret;
 
 export const authenticate = async (
   req: Request,
@@ -27,13 +25,16 @@ export const authenticate = async (
     return sendError(res, 'INVALID_TOKEN');
   }
 
+  let decoded: { _id: string };
   try {
-    const decoded = jwt.verify(token, secret) as {
-      _id: string;
-      role: "admin" | "user";
-      email: string;
-    };
+    decoded = jwt.verify(token, secret) as { _id: string };
+  } catch {
+    return sendError(res, 'INVALID_TOKEN');
+  }
 
+  // A database failure is a server error (500), not a reason to treat the
+  // session as invalid and log the user out.
+  try {
     const user = await UserService.getUserById(decoded._id);
     if (!user) {
       return sendError(res, 'USER_NOT_FOUND');
@@ -44,11 +45,10 @@ export const authenticate = async (
       role: user.role as "admin" | "user",
       email: user.email,
     };
-
-    next();
   } catch (err) {
-    return sendError(res, 'INVALID_TOKEN');
+    return next(err);
   }
+  next();
 };
 
 // For public routes that show more to a logged-in user (the admin sees
@@ -117,20 +117,16 @@ export const validateCommentOwner = async (
   if (req.user.role === "admin") return next();
 
   const commentId = req.params.id;
-  if (!mongoose.Types.ObjectId.isValid(commentId)) {
+  if (!isObjectId(commentId)) {
     return sendError(res, 'INVALID_COMMENT_ID');
   }
 
   try {
-    const comment = await CommentModel.findById(commentId).select("author").lean();
-    if (!comment) return sendError(res, 'COMMENT_NOT_FOUND');
-
-    if (comment.author.toString() !== req.user._id) {
-      return sendError(res, 'FORBIDDEN');
-    }
-
+    const authorId = await CommentService.getAuthorId(commentId);
+    if (!authorId) return sendError(res, 'COMMENT_NOT_FOUND');
+    if (authorId !== req.user._id) return sendError(res, 'FORBIDDEN');
     next();
-  } catch {
-    return sendError(res, 'UNKNOWN_ERROR');
+  } catch (err) {
+    next(err);
   }
 };
