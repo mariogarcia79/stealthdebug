@@ -763,12 +763,12 @@ claude.ai ──OAuth──► stealthdebug.org/api/oauth/*   (backend: authoriz
     └──MCP (Bearer access token)──► mcp.stealthdebug.org/mcp   (mcp container)
                                          │ own service token (never the agent's token)
                                          ▼
-                                  backend:4000/api/agent   (same pod; nginx returns 404 for it)
+                                  backend:4000/api/agent   (app.network only; nginx returns 404 for it)
 ```
 
 | Piece | Where |
 |---|---|
-| MCP server | `mcp/` → image `ghcr.io/.../mcp`, quadlet `services/mcp.container`, port 4100 (same pod) |
+| MCP server | `mcp/` → image `ghcr.io/.../mcp`, quadlet `services/mcp.container`, `mcp:4100` on app.network (nginx upstream written by `deploy.sh`) |
 | Authorization server | backend `/api/oauth/*`, metadata at `/.well-known/oauth-authorization-server` |
 | Consent page | `https://stealthdebug.org/oauth/consent` (admins only) |
 | Admin panel | navbar → **agents** (`/admin/changes`, `/admin/agents`, `/admin/guidelines`, `/admin/logs`) |
@@ -805,7 +805,7 @@ Posts with **Visible to agents (MCP)** unchecked in the editor are invisible to 
    AGENT_API_PRIVATE_KEY=...        # from the script
    OAUTH_ISSUER=https://stealthdebug.org
    MCP_RESOURCE=https://mcp.stealthdebug.org/mcp
-   AGENT_API_URL=http://127.0.0.1:4000/api/agent
+   AGENT_API_URL=http://backend:4000/api/agent
    # MCP_RATE_LIMIT=120             (requests per minute per agent)
    ```
 

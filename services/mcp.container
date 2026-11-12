@@ -6,6 +6,8 @@ Requires=backend.service
 [Container]
 Image=localhost/mcp:latest
 Pod=webpage.pod
+# nginx reaches it as mcp:4100 and it calls the backend as backend:4000
+# (each container has its own address on app.network)
 ContainerName=mcp
 # OAUTH_PUBLIC_KEY, AGENT_API_PRIVATE_KEY, MCP_RESOURCE, OAUTH_ISSUER,
 # AGENT_API_URL (RUNBOOK §13). deploy.sh only installs this unit when the

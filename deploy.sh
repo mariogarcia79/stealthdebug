@@ -185,6 +185,12 @@ else
   rm -f /home/deploy/.config/containers/systemd/mcp.container
   echo "No ~/.env/mcp.env: the MCP server is not deployed (RUNBOOK §13)."
 fi
+# nginx reaches it by container name, like the backend (each container has
+# its own address on app.network); without it, the repo's placeholder stays
+if [ "$MCP_ENABLED" = 1 ]; then
+  printf '# Written by deploy.sh\nupstream mcp {\n    server mcp:4100;\n}\n' \
+    > /home/deploy/.config/containers/nginx/mcp-upstream.conf
+fi
 
 if [ -n "${BACKEND_IMAGE:-}" ] && [ -n "${FRONTEND_IMAGE:-}" ]; then
   echo "CI mode: pulling pre-built images from registry..."

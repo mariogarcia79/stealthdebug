@@ -1,7 +1,9 @@
 [Unit]
 Description=Nginx Reverse Proxy
-After=backend.service frontend.service
+After=backend.service frontend.service mcp.service
 Requires=backend.service frontend.service
+# Optional: started first when deployed, so the name "mcp" resolves
+Wants=mcp.service
 
 [Container]
 Image=docker.io/library/nginx:1.31.1-alpine-slim
