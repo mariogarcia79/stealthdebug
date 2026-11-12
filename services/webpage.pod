@@ -6,3 +6,7 @@ After=network-online.target
 [Pod]
 PodName=webpage
 Network=app.network
+# Also on the monitoring network, so Prometheus can scrape the backend's
+# metrics port (METRICS_PORT=9464 in backend.env; RUNBOOK §13). Only the
+# observability containers (Prometheus, exporters) are on that network.
+Network=observability.network

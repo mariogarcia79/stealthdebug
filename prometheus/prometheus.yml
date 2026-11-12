@@ -10,6 +10,12 @@ scrape_configs:
     static_configs:
       - targets: ["podman-exporter:9882"]
 
+  # Agents: MCP tool calls, errors, change requests awaiting review
+  # (backend.env METRICS_PORT=9464; down until set)
+  - job_name: "stealthdebug-backend"
+    static_configs:
+      - targets: ["backend:9464"]
+
   - job_name: "prometheus"
     static_configs:
       - targets: ['localhost:9090']

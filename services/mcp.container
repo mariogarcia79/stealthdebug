@@ -1,0 +1,25 @@
+[Unit]
+Description=MCP server for AI agents (mcp.stealthdebug.org)
+After=backend.service
+Requires=backend.service
+
+[Container]
+Image=localhost/mcp:latest
+Pod=webpage.pod
+ContainerName=mcp
+# OAUTH_PUBLIC_KEY, AGENT_API_PRIVATE_KEY, MCP_RESOURCE, OAUTH_ISSUER,
+# AGENT_API_URL (RUNBOOK §13). deploy.sh only installs this unit when the
+# file exists.
+EnvironmentFile=%h/.config/containers/env/mcp.env
+Network=app.network
+# Only nginx (same pod) talks to it; it needs no writable files
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=ALL
+
+[Service]
+TimeoutStartSec=900
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

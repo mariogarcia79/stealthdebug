@@ -6,7 +6,11 @@
 #   ghcr.io image references, and DEPLOY_SHA to the commit those images were
 #   built from. The script checks out exactly that commit (so config and
 #   images always match), pulls the images, and retags them as the
-#   localhost/ names the quadlet files reference.
+#   localhost/ names the quadlet files reference. MCP_IMAGE (optional) is
+#   the MCP server's image.
+#
+# The MCP server (agents) is deployed only once ~/.env/mcp.env exists
+# (RUNBOOK §13); until then its unit isn't installed.
 #
 # Local mode (called manually):
 #   BACKEND_IMAGE and FRONTEND_IMAGE are unset. The script checks out
@@ -43,6 +47,7 @@ BACKUP_DIR="/home/deploy/.config/containers.backup.$(date +%s)"
 PREV_COMMIT=${DEPLOY_PREV_COMMIT:-$(git rev-parse HEAD)}
 PREV_BACKEND_ID=$(podman image inspect --format '{{.Id}}' localhost/backend:latest 2>/dev/null || true)
 PREV_FRONTEND_ID=$(podman image inspect --format '{{.Id}}' localhost/frontend:latest 2>/dev/null || true)
+PREV_MCP_ID=$(podman image inspect --format '{{.Id}}' localhost/mcp:latest 2>/dev/null || true)
 
 if [ -d /home/deploy/.config/containers ]; then
   cp -r /home/deploy/.config/containers "$BACKUP_DIR"
@@ -62,6 +67,9 @@ rollback() {
   fi
   if [ -n "$PREV_FRONTEND_ID" ]; then
     podman tag "$PREV_FRONTEND_ID" localhost/frontend:latest || echo "WARNING: could not restore frontend image"
+  fi
+  if [ -n "$PREV_MCP_ID" ]; then
+    podman tag "$PREV_MCP_ID" localhost/mcp:latest || echo "WARNING: could not restore mcp image"
   fi
 
   # Restore config and restart
@@ -169,6 +177,15 @@ echo "Copied environment variable files."
 # Copy quadlet service files, then pull/build images
 cp -r ./services/* /home/deploy/.config/containers/systemd/
 
+# MCP server: only with its environment file (keys, URLs)
+if [ -f /home/deploy/.env/mcp.env ]; then
+  MCP_ENABLED=1
+else
+  MCP_ENABLED=0
+  rm -f /home/deploy/.config/containers/systemd/mcp.container
+  echo "No ~/.env/mcp.env: the MCP server is not deployed (RUNBOOK §13)."
+fi
+
 if [ -n "${BACKEND_IMAGE:-}" ] && [ -n "${FRONTEND_IMAGE:-}" ]; then
   echo "CI mode: pulling pre-built images from registry..."
 
@@ -181,6 +198,10 @@ if [ -n "${BACKEND_IMAGE:-}" ] && [ -n "${FRONTEND_IMAGE:-}" ]; then
 
   podman pull "$BACKEND_IMAGE"
   podman pull "$FRONTEND_IMAGE"
+  if [ "$MCP_ENABLED" = 1 ] && [ -n "${MCP_IMAGE:-}" ]; then
+    podman pull "$MCP_IMAGE"
+    podman tag "$MCP_IMAGE" localhost/mcp:latest
+  fi
 
   # Retag to the localhost names the quadlet files reference by default,
   # so no quadlet file changes are needed in the repo.
@@ -192,6 +213,7 @@ else
   echo "Local mode: building images with podman build..."
   podman build -t backend:latest  ./backend/
   podman build -t frontend:latest ./frontend/
+  if [ "$MCP_ENABLED" = 1 ]; then podman build -t mcp:latest ./mcp/; fi
   echo "Built backend and frontend images."
 fi
 
@@ -235,6 +257,7 @@ systemctl --user status observability-pod.service --no-pager
 # nginx refusing a bad config), so check each application container, and
 # that it is still running a few seconds later. Failing here rolls back.
 APP_SERVICES="mongo backend frontend nginx"
+if [ "$MCP_ENABLED" = 1 ]; then APP_SERVICES="$APP_SERVICES mcp"; fi
 all_active() {
   local svc
   for svc in $APP_SERVICES; do
@@ -273,12 +296,13 @@ echo "Backup removed."
 # Cleanup problems never fail a deployment that already succeeded.
 CURRENT_BACKEND="${BACKEND_IMAGE:-}"
 CURRENT_FRONTEND="${FRONTEND_IMAGE:-}"
+CURRENT_MCP="${MCP_IMAGE:-}"
 {
-  for current in "$CURRENT_BACKEND" "$CURRENT_FRONTEND"; do
+  for current in "$CURRENT_BACKEND" "$CURRENT_FRONTEND" "$CURRENT_MCP"; do
     [ -n "$current" ] || continue          # local mode: no registry images
     podman images --format '{{.Repository}}:{{.Tag}}' \
       | grep "^${current%:*}:" \
-      | grep -vxF -e "$CURRENT_BACKEND" -e "$CURRENT_FRONTEND" \
+      | grep -vxF -e "$CURRENT_BACKEND" -e "$CURRENT_FRONTEND" -e "${CURRENT_MCP:-none}" \
       | xargs -r podman rmi
   done
   podman image prune -f

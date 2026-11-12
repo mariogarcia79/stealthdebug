@@ -163,13 +163,14 @@ jobs:
   build-images:
     name: Build images
     runs-on: ubuntu-24.04
-    needs: [typecheck, test, audit-deps]
+    needs: [typecheck, test, mcp, audit-deps]
     permissions:
       contents: read
       packages: write
     outputs:
       backend-digest: ${{ steps.build-backend.outputs.digest }}
       frontend-digest: ${{ steps.build-frontend.outputs.digest }}
+      mcp-digest: ${{ steps.build-mcp.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -219,6 +220,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build MCP server
+        id: build-mcp
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./mcp
+          build-args: |
+            SECURITY_REFRESH=${{ steps.refresh.outputs.week }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository }}/mcp:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/mcp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   trivy-images:
     name: Trivy image scan
     runs-on: ubuntu-24.04
@@ -265,6 +280,19 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
 
+      - name: Scan MCP server image
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}/mcp:${{ github.sha }}
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          format: sarif
+          output: trivy-mcp.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
       - name: Upload backend SARIF
         if: always() && hashFiles('trivy-backend.sarif') != ''
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
@@ -278,6 +306,13 @@ jobs:
         with:
           sarif_file: trivy-frontend.sarif
           category: trivy-frontend
+
+      - name: Upload MCP server SARIF
+        if: always() && hashFiles('trivy-mcp.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-mcp.sarif
+          category: trivy-mcp
 
   deploy:
     name: Deploy to VPS
@@ -305,6 +340,7 @@ jobs:
         env:
           BACKEND_IMAGE: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
           FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+          MCP_IMAGE: ghcr.io/${{ github.repository }}/mcp:${{ github.sha }}
           DEPLOY_SHA: ${{ github.sha }}
           SSH_USER: ${{ secrets.VPS_SSH_USER }}
           SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
@@ -313,7 +349,7 @@ jobs:
           # export sets the vars for the entire remote session; env-var prefix
           # on a builtin like `cd` does NOT persist to subsequent commands.
           ssh -i ~/.ssh/deploy_key "${SSH_USER}@${SSH_HOST}" \
-            "export BACKEND_IMAGE='${BACKEND_IMAGE}' FRONTEND_IMAGE='${FRONTEND_IMAGE}' DEPLOY_SHA='${DEPLOY_SHA}' && cd '${APP_DIR}' && ./deploy.sh"
+            "export BACKEND_IMAGE='${BACKEND_IMAGE}' FRONTEND_IMAGE='${FRONTEND_IMAGE}' MCP_IMAGE='${MCP_IMAGE}' DEPLOY_SHA='${DEPLOY_SHA}' && cd '${APP_DIR}' && ./deploy.sh"
 
       - name: Health check
         env:

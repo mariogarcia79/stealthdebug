@@ -18,6 +18,7 @@ This document covers every aspect of operating the CI/CD pipeline for stealthdeb
 10. [MongoDB: backup and restore](#10-mongodb-backup-and-restore)
 11. [Posts, images and the media library](#11-posts-images-and-the-media-library)
 12. [Legal pages, privacy and security.txt](#12-legal-pages-privacy-and-securitytxt)
+13. [AI agents: MCP server, OAuth and review](#13-ai-agents-mcp-server-oauth-and-review)
 
 ---
 
@@ -749,4 +750,128 @@ Podman's API service (`podman.service`, polled by podman-exporter every scrape) 
 
   Answer within one month.
 - **Data breach** affecting accounts: notify the AEPD within 72 hours (https://sedeagpd.gob.es) and the affected users if the risk is high.
+
+---
+
+## 13. AI agents: MCP server, OAuth and review
+
+Agents (Claude, from claude.ai) read posts and **propose** changes through an MCP server; you review every proposal in the admin panel, and the application writes it. Agents never read comments and never write anything themselves.
+
+```
+claude.ai ──OAuth──► stealthdebug.org/api/oauth/*   (backend: authorization server, consent page)
+    │
+    └──MCP (Bearer access token)──► mcp.stealthdebug.org/mcp   (mcp container)
+                                         │ own service token (never the agent's token)
+                                         ▼
+                                  backend:4000/api/agent   (same pod; nginx returns 404 for it)
+```
+
+| Piece | Where |
+|---|---|
+| MCP server | `mcp/` → image `ghcr.io/.../mcp`, quadlet `services/mcp.container`, port 4100 (same pod) |
+| Authorization server | backend `/api/oauth/*`, metadata at `/.well-known/oauth-authorization-server` |
+| Consent page | `https://stealthdebug.org/oauth/consent` (admins only) |
+| Admin panel | navbar → **agents** (`/admin/changes`, `/admin/agents`, `/admin/guidelines`, `/admin/logs`) |
+| Public AI access (no MCP) | `/llms.txt`, `/blog/<id>.md`, `/blog/<id>.<lang>.md` |
+
+Posts with **Visible to agents (MCP)** unchecked in the editor are invisible to all of this: MCP tools, `llms.txt` and the Markdown copies, translations included.
+
+### 13a. One-time setup
+
+1. **DNS (Cloudflare):** add `mcp` → the VPS, **proxied** (orange cloud), like the main site.
+2. **Certificate:** the nginx server block for `mcp.stealthdebug.org` reuses `cloudflare-origin.pem`. Check that the origin certificate covers `*.stealthdebug.org` (Cloudflare → SSL/TLS → Origin Server). If it covers only the apex and `www`, create a new one with both names and replace `~/.certs/cloudflare-origin.{pem,key}`.
+3. **Keys:** on your machine (or the VPS), run
+
+   ```bash
+   ./scripts/gen-agent-keys.sh
+   ```
+
+   It prints four lines: two for `backend.env`, two for `mcp.env`. Nothing is written to disk; clear the terminal afterwards. The backend never holds the MCP server's private key and vice versa.
+4. **`~/.env/backend.env`** (on the VPS): add
+
+   ```
+   OAUTH_SIGNING_KEY=...            # from the script
+   AGENT_API_PUBLIC_KEY=...         # from the script
+   OAUTH_ISSUER=https://stealthdebug.org
+   MCP_RESOURCE=https://mcp.stealthdebug.org/mcp
+   METRICS_PORT=9464
+   # MAX_OPEN_CHANGE_REQUESTS=10    (per agent; default 10)
+   ```
+
+5. **`~/.env/mcp.env`** (new file, `chmod 600`):
+
+   ```
+   OAUTH_PUBLIC_KEY=...             # from the script
+   AGENT_API_PRIVATE_KEY=...        # from the script
+   OAUTH_ISSUER=https://stealthdebug.org
+   MCP_RESOURCE=https://mcp.stealthdebug.org/mcp
+   AGENT_API_URL=http://127.0.0.1:4000/api/agent
+   # MCP_RATE_LIMIT=120             (requests per minute per agent)
+   ```
+
+   `deploy.sh` deploys the MCP container **only when this file exists**. Without it, everything else deploys as before.
+6. **Prometheus:** if you use `~/.prometheus/prometheus.yml` (Grafana Cloud), add the `stealthdebug-backend` job from `prometheus/prometheus.yml` to it. Metrics: `agent_tool_calls_total{tool,outcome}`, `agent_tool_errors_total{tool}`, `change_requests_active{status}`. They're served only on the monitoring network, never through nginx.
+7. **Deploy** (push to main, or `./deploy.sh` on the VPS). Then check:
+
+   ```bash
+   curl -s https://stealthdebug.org/.well-known/oauth-authorization-server | jq .issuer
+   curl -s https://mcp.stealthdebug.org/.well-known/oauth-protected-resource/mcp | jq .
+   curl -si -X POST https://mcp.stealthdebug.org/mcp | head -5      # 401 + WWW-Authenticate: Bearer resource_metadata=...
+   curl -s -o /dev/null -w '%{http_code}\n' https://stealthdebug.org/api/agent/posts   # 404 (closed to the internet)
+   ```
+
+8. **Cloudflare bots:** Anthropic's servers call `mcp.stealthdebug.org` and `/api/oauth/token`. If connecting fails, look at Security → Events for blocked requests from Anthropic. Bot Fight Mode on the free plan can't be skipped per path; if it blocks Claude, turn it off (Security → Bots). The CSP nonce in `security-headers.conf` exists only for it and can then go.
+
+### 13b. Register Claude and connect it
+
+1. Admin panel → **agents** → *register an agent*: name `Claude`, leave the redirect URIs empty (that means `https://claude.ai/api/mcp/auth_callback`). Copy the **client ID** and **client secret**: the secret is shown once (only its hash is stored). If you lose it, remove the agent and register it again.
+2. claude.ai → Settings → Connectors → *Add custom connector*:
+   - URL: `https://mcp.stealthdebug.org/mcp`
+   - Advanced settings: the OAuth client ID and client secret from step 1.
+3. *Connect*: claude.ai sends you to `stealthdebug.org`. Log in as admin if asked, check the consent page (agent, client, scopes, redirect URI) and **Approve**.
+4. In a chat with the connector enabled, ask Claude to list the posts. The call shows up in **agents → audit log**.
+
+Only clients you register can connect; there is no dynamic client registration. Claude Code or any other client can't connect unless you register it.
+
+### 13c. Test with MCP Inspector first (optional)
+
+1. Register a separate agent, e.g. `Inspector`, with the redirect URI `http://localhost:6274/oauth/callback`.
+2. On your machine: `npx @modelcontextprotocol/inspector`. In the browser tab it opens, set:
+   - Transport: **Streamable HTTP**, URL `https://mcp.stealthdebug.org/mcp`
+   - Connection type: **Via Proxy** (the Inspector's local proxy makes the requests, without a browser `Origin`, which the MCP server would refuse)
+   - Authentication: client ID and secret of `Inspector`, scope `posts:read changes:write`
+3. *Connect*, approve on the consent page, then try `list_posts`, `get_post`, `get_guidelines`, the resource `style://guidelines`, and a `propose_edit` on a test post. The proposal appears under **agents → change requests**.
+4. When you're done, **remove** the `Inspector` agent (agents page), so its credentials stop working.
+
+### 13d. Day to day
+
+- **Review:** agents → change requests (Edit / New / Translation). The raw side-by-side diff is always shown; the rendered preview loads no external images. Accept (choose publish now or draft for new posts and translations), or decline with a comment, which the agent reads and answers with a new revision. If the post changed after the proposal, it's *outdated* and can't be accepted until the agent proposes again on the current version.
+- **What accepting does:** an edit writes the fields and adds the comment "Claude edited this post under the supervision of …" (localized). A new post is authored by the agent and gets the "wrote this post" banner. A translation is linked to the original, gets the "translated" banner, and appears when readers switch language.
+- **Guidelines:** agents → guidelines. Every save is a new version; agents get the latest through `style://guidelines` and `get_guidelines`.
+- **Audit log:** agents → audit log. It has every tool call (agent, tool, target, outcome; never tokens or request bodies), every review, and OAuth events. Entries expire after **30 days** (TTL index).
+- **Revoke access now:** agents → *revoke all tokens*. The next MCP call fails: the backend checks the grant on every call. Claude has to go through the consent page again.
+- **Remove an agent:** this revokes its tokens and clients and closes its open requests. Posts and comments it authored keep its name.
+
+### 13e. Rotating keys
+
+| Key | How | Effect |
+|---|---|---|
+| OAuth signing key (`OAUTH_SIGNING_KEY` / `OAUTH_PUBLIC_KEY`) | run the script, replace both lines, deploy | Access tokens in flight (10 min max) stop working; clients refresh (refresh tokens live in the database and stay valid) |
+| Service key (`AGENT_API_PRIVATE_KEY` / `AGENT_API_PUBLIC_KEY`) | run the script, replace both lines, deploy | Nothing visible: the MCP server signs a new 60 s token for every call |
+| A leaked client secret | remove the agent, register it again, update the claude.ai connector | Old credentials and tokens stop working |
+
+Rotate both pairs if the VPS is ever compromised. Use one new script run for both env files, so the halves match.
+
+### 13f. When something fails
+
+| Symptom | Look at |
+|---|---|
+| claude.ai: "couldn't connect" | the `curl` checks in 13a; Cloudflare Security → Events (bots); `journalctl --user -u mcp.service -n 50` |
+| Consent page says only admins can approve | you're logged in as a normal user: log out, log in as admin |
+| `invalid_grant` on connect | the code took longer than 2 minutes or was reused (any reuse revokes the grant): connect again |
+| `invalid_client` | wrong client ID/secret in the connector, or the agent was removed |
+| Tools answer 503 | `AGENT_API_PUBLIC_KEY` missing or invalid in `backend.env` (backend log says which) |
+| Token endpoint answers 503 | `OAUTH_SIGNING_KEY` missing or invalid in `backend.env` |
+| MCP container restarts in a loop | `mcp.env` incomplete; the log names the missing variable |
+| An agent says it hit a limit | it has 10 open requests (`MAX_OPEN_CHANGE_REQUESTS`): review or decline some |
 
