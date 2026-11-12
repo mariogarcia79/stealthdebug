@@ -20,12 +20,16 @@ function validPublished(value: unknown): boolean {
 
 // Validates and normalises the editable fields present in body. With
 // required = true (create), title, summary and content must be there.
-function validatePostFields(body: Record<string, unknown>, required: boolean): Partial<Pick<IPost, "title" | "summary" | "content" | "published" | "tags" | "series">> {
+function validatePostFields(body: Record<string, unknown>, required: boolean): Partial<Pick<IPost, "title" | "summary" | "content" | "published" | "tags" | "series" | "mcpVisible">> {
   const out: ReturnType<typeof validatePostFields> = {};
   if (required || body.title !== undefined)   out.title   = validateInput(body.title,   false, MAX_TITLE_LENGTH,   "Title");
   if (required || body.summary !== undefined) out.summary = validateInput(body.summary, false, MAX_SUMMARY_LENGTH, "Summary");
   if (required || body.content !== undefined) out.content = validateInput(body.content, true,  MAX_CONTENT_LENGTH, "Content");
   if (body.published !== undefined) out.published = validPublished(body.published);
+  if (body.mcpVisible !== undefined) {
+    if (typeof body.mcpVisible !== "boolean") throw new ValidationError("mcpVisible must be true or false");
+    out.mcpVisible = body.mcpVisible;
+  }
   if (body.tags !== undefined)      out.tags   = normalizeTags(body.tags);
   if (body.series !== undefined)    out.series = normalizeSeries(body.series);
   return out;
@@ -117,6 +121,7 @@ class PostController {
       published: fields.published ?? true,
       tags: fields.tags ?? [],
       series: fields.series ?? "",
+      mcpVisible: fields.mcpVisible ?? true,
     });
     return res.status(201).json(post);
   }

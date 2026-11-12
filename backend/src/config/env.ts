@@ -13,4 +13,9 @@ export const env = {
   port: Number(process.env.PORT) || 4000,
   // Public address of the site (sitemap and other absolute URLs)
   siteUrl: (process.env.SITE_URL || "https://stealthdebug.org").replace(/\/+$/, ""),
+  // Public key (PEM, Ed25519) of the MCP server's service credential. Unset:
+  // the agent API answers 503.
+  agentApiPublicKey: process.env.AGENT_API_PUBLIC_KEY || "",
+  // Limits for agents' change requests
+  maxOpenChangeRequests: Number(process.env.MAX_OPEN_CHANGE_REQUESTS) || 10,
 } as const;

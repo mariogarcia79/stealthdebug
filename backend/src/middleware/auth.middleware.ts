@@ -6,6 +6,7 @@ import { sendError } from "../config/errors";
 import { env } from "../config/env";
 import { isObjectId } from "../utils/validation";
 import { isTokenBlacklisted } from "./tokenBlacklist";
+import { UserRole } from "../types/userRole";
 
 const secret = env.jwtSecret;
 
@@ -39,6 +40,11 @@ export const authenticate = async (
     if (!user) {
       return sendError(res, 'USER_NOT_FOUND');
     }
+    // Agents never have a cookie session (they can't log in); refuse one
+    // anyway, so no cookie route can ever act as an agent.
+    if (user.role === UserRole.AGENT) {
+      return sendError(res, 'INVALID_TOKEN');
+    }
 
     req.user = {
       _id: user.id.toString(),
@@ -64,7 +70,7 @@ export const optionalAuth = async (
   try {
     const decoded = jwt.verify(token, secret) as { _id: string };
     const user = await UserService.getUserById(decoded._id);
-    if (user) {
+    if (user && user.role !== UserRole.AGENT) {
       req.user = { _id: user.id.toString(), role: user.role as "admin" | "user", email: user.email };
     }
   } catch {

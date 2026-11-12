@@ -8,6 +8,7 @@ export interface IUser {
   role: UserRole;
   termsAcceptedAt?: Date;   // public sign-up: when the terms of use were accepted
   termsVersion?: string;    // which version (date) of the terms
+  deletedAt?: Date | null;  // agents only: removed, kept for attribution
   createdAt: Date;
   updatedAt: Date;
 }

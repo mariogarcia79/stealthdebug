@@ -25,6 +25,15 @@ export const ERRORS = {
   NOT_FOUND:            { message: 'Not found',                     status: 404 },
   INVALID_JSON:         { message: 'Request body is not valid JSON', status: 400 },
   PAYLOAD_TOO_LARGE:    { message: 'Request body too large',        status: 413 },
+  AGENT_MANAGED:        { message: 'Agents are managed from the agents page', status: 409 },
+  INSUFFICIENT_SCOPE:   { message: 'Insufficient scope',            status: 403 },
+  AGENT_API_DISABLED:   { message: 'Agent API is not configured',   status: 503 },
+  CHANGE_REQUEST_NOT_FOUND: { message: 'Change request not found',  status: 404 },
+  CHANGE_REQUEST_NOT_OPEN:  { message: 'Change request is not open', status: 409 },
+  CHANGE_REQUEST_OUTDATED:  { message: 'The post changed after this revision: a new revision is needed', status: 409 },
+  CHANGE_REQUEST_STALE_REVIEW: { message: 'A newer revision was submitted: review it first', status: 409 },
+  TOO_MANY_CHANGE_REQUESTS: { message: 'Too many open change requests', status: 409 },
+  TRANSLATION_EXISTS:   { message: 'A translation into this language already exists: propose an edit of it', status: 409 },
 } as const;
 
 export type ErrorKey = keyof typeof ERRORS;

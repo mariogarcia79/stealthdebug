@@ -46,6 +46,8 @@ class UserService {
     skip?: number;
   }): Promise<IUserDocument[]> {
     const mongoFilter = this.buildFilter(filter);
+    // Agents have their own admin page (services/agents.service.ts)
+    if (!mongoFilter.role) mongoFilter.role = { $ne: UserRole.AGENT };
 
     const sortOrder: { [key: string]: SortOrder } = {
       name: sorted ? "asc" : "desc"
@@ -72,8 +74,9 @@ class UserService {
     const update: { name?: string; email?: string } = {};
     if (fields.name !== undefined) update.name = fields.name;
     if (fields.email !== undefined) update.email = fields.email;
+    await UserService.notAgent(id);
     try {
-      const user = isObjectId(id) ? await UserModel.findByIdAndUpdate(id, update, { new: true }) : null;
+      const user = await UserModel.findOneAndUpdate({ _id: id, role: { $ne: UserRole.AGENT } }, update, { new: true });
       if (!user) throw new AppError("USER_NOT_FOUND");
       return user;
     } catch (err) {
@@ -82,14 +85,22 @@ class UserService {
   }
 
   static async updateUserPassword(id: string, currentPassword: unknown, newPassword: string): Promise<void> {
-    const user = isObjectId(id) ? await UserModel.findById(id) : null;
-    if (!user) throw new AppError("USER_NOT_FOUND");
+    const user = await UserService.notAgent(id);
 
     const isMatch = typeof currentPassword === "string" && await bcrypt.compare(currentPassword, user.hash);
     if (!isMatch) throw new AppError("INCORRECT_PASSWORD");
 
     user.hash = await UserService.hashPassword(newPassword);
     await user.save();
+  }
+
+  // The user, if it exists and isn't an agent: agents are changed and removed
+  // only through AgentService, which keeps their authorship.
+  private static async notAgent(id: string): Promise<IUserDocument> {
+    const user = isObjectId(id) ? await UserModel.findById(id) : null;
+    if (!user) throw new AppError("USER_NOT_FOUND");
+    if (user.role === UserRole.AGENT) throw new AppError("AGENT_MANAGED");
+    return user;
   }
 
   static async hashPassword(password: string): Promise<string> {
@@ -102,7 +113,7 @@ class UserService {
   }
 
   static async deleteUserById(id: string): Promise<void> {
-    if (!isObjectId(id) || !(await UserModel.exists({ _id: id }))) throw new AppError("USER_NOT_FOUND");
+    await UserService.notAgent(id);
     // Right to erasure: the account and everything the user wrote go
     // together (comments are deleted, not just hidden or anonymised).
     await CommentModel.deleteMany({ author: id });

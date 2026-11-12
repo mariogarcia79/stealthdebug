@@ -17,6 +17,8 @@ const userSchema = new Schema<IUserDocument>(
     },
     termsAcceptedAt: { type: Date },
     termsVersion:    { type: String },
+    // Agents are never deleted: they stay as authors of what they wrote
+    deletedAt:       { type: Date, default: null },
   },
   {
     timestamps: true,

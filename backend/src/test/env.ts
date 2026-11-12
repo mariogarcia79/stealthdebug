@@ -7,3 +7,10 @@ process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-only-jwt-secret-not-used-anywhere-else";
 process.env.UPLOAD_DIR = path.join(os.tmpdir(), `sd-test-uploads-${process.pid}`);
 process.env.MEDIA_SYNC_ON_START = "false";
+
+// Service credential of the MCP server (agent API): a throwaway key pair
+import { generateKeyPairSync } from "crypto";
+const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+process.env.AGENT_API_PUBLIC_KEY = publicKey.export({ type: "spki", format: "pem" }).toString();
+process.env.TEST_AGENT_API_PRIVATE_KEY = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+process.env.MAX_OPEN_CHANGE_REQUESTS = "3";

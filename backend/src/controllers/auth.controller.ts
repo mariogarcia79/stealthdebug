@@ -8,6 +8,7 @@ import UserService from "../services/users.service";
 import { AppError, ValidationError } from "../config/errors";
 import { env } from "../config/env";
 import { blacklistToken } from "../middleware/tokenBlacklist";
+import { UserRole } from "../types/userRole";
 
 // Version (effective date) of the terms of use accepted at sign-up. Bump it
 // together with frontend/src/content/legal/*/terms.md when the terms change.
@@ -68,7 +69,10 @@ class AuthController {
       throw new AppError("INVALID_CREDENTIALS");
     }
 
-    const user = await UserService.getUserByName(cleanName);
+    // Agents have no password: they are treated as unknown names (same time,
+    // same answer)
+    const found = await UserService.getUserByName(cleanName);
+    const user = found && found.role !== UserRole.AGENT ? found : null;
     const isMatch = await bcrypt.compare(password, user ? user.hash : DUMMY_HASH);
     if (!user || !isMatch) throw new AppError("INVALID_CREDENTIALS");
 
