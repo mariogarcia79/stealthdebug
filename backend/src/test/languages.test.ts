@@ -12,9 +12,16 @@ async function setup() {
   const a = await createAgent(admin._id, "Claude");
   const original = await createPost(admin._id, { title: "Hello", content: "English", lang: "en", series: "S" });
   const propose = (body: object) => request(app).post("/api/agent/change-requests").set("Authorization", agentAuth(a)).send(body);
-  const csrf = (await request(app).get("/api/admin/csrf").set("Cookie", cookieFor(admin))).body.csrf;
-  const accept = (id: string, publish = true) => request(app).post(`/api/admin/change-requests/${id}/accept`)
-    .set("Cookie", cookieFor(admin)).set("X-CSRF-Token", csrf).send({ revision: 1, publish });
+  // One session for both: the CSRF token is bound to it (a cookie signed a
+  // second later is another session)
+  const cookie = cookieFor(admin);
+  const csrf = (await request(app).get("/api/admin/csrf").set("Cookie", cookie)).body.csrf;
+  const accept = async (id: string, publish = true) => {
+    const r = await request(app).post(`/api/admin/change-requests/${id}/accept`)
+      .set("Cookie", cookie).set("X-CSRF-Token", csrf).send({ revision: 1, publish });
+    expect(r.status).toBe(200);
+    return r;
+  };
   return { admin, a, original, propose, accept };
 }
 
