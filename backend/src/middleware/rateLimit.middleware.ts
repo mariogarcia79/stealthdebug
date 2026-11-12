@@ -15,9 +15,13 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000).unref();
 
-export function rateLimitAuth(windowMs: number, maxRequests: number) {
+// name: each limiter counts separately (login attempts don't use up the
+// sign-up allowance, and so on)
+export function rateLimitAuth(windowMs: number, maxRequests: number, name = "auth") {
   return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+    // Route tests make many requests from one address
+    if (process.env.NODE_ENV === "test") return next();
+    const ip = `${name}:${req.ip ?? req.socket.remoteAddress ?? "unknown"}`;
     const now = Date.now();
 
     const entry = store.get(ip);

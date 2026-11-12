@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AuthAPI from '../../api/auth.api';
 import { validateLogin } from '../../utils/validation';
@@ -8,6 +8,11 @@ import { useI18n } from '../../i18n';
 function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // ?next=/path: where to go after logging in (e.g. back to an agent's
+  // consent page). Same-site paths only, never another origin.
+  const nextParam = params.get('next') ?? '';
+  const next = /^\/(?![\/\\])/.test(nextParam) ? nextParam : '/blog';
   const { t } = useI18n();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +28,7 @@ function Login() {
       setError('');
       await AuthAPI.logIn(name.trim(), password);
       await login();
-      navigate('/blog');
+      navigate(next, { replace: true });
     } catch (err: any) {
       setError(String(err?.response?.data?.message || err?.message || t('auth.loginFailed')));
     } finally {

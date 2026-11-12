@@ -415,6 +415,16 @@ textarea.input.prose-input { font-family: var(--sans); font-size: 15px; }
 .auth .alt a { color: var(--accent); }
 .auth.signup .panel { max-width: 520px; }
 
+/* agent consent (/oauth/consent) */
+.auth .consent { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+.auth:has(.consent) .panel { max-width: 560px; }
+.consent-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; font-size: 13.5px; }
+.consent-facts dt { color: var(--meta); font-family: var(--mono); }
+.consent-facts dd { margin: 0; color: var(--body); overflow-wrap: anywhere; }
+.consent-facts ul { margin: 0; padding-left: 18px; }
+.consent-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 480px) { .consent-facts { grid-template-columns: 1fr; } .consent-facts dt { margin-top: 6px; } }
+
 /* consent checkbox */
 .check { display: flex; gap: 10px; align-items: flex-start; font: 400 13.5px/1.5 var(--sans); color: var(--body); cursor: pointer; }
 .check input { appearance: none; flex: none; width: 16px; height: 16px; margin-top: 2px; border: 1px solid var(--line-hi); border-radius: var(--radius); background: var(--bg); display: grid; place-items: center; cursor: pointer; }

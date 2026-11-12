@@ -194,6 +194,26 @@ const en = {
   'about.empty': 'Nothing here yet.',
   'about.loadError': 'Could not load this page.',
 
+  // agent consent (OAuth)
+  'consent.title': 'Connect an agent',
+  'consent.lead': '{agent} is asking for access to this blog through its MCP server.',
+  'consent.agent': 'agent',
+  'consent.client': 'client',
+  'consent.redirect': 'returns to',
+  'consent.scopes': 'access',
+  'consent.scope.postsRead': 'read posts, including drafts (not posts hidden from agents)',
+  'consent.scope.changesWrite': 'propose changes, new posts and translations for you to review',
+  'consent.never': 'Agents never see comments and never change the site themselves: every change waits for your review. You can revoke this access at any time.',
+  'consent.approve': 'approve',
+  'consent.deny': 'deny',
+  'consent.leaving': 'Returning to the agent…',
+  'consent.adminOnly': 'Only an administrator can connect an agent.',
+  'consent.expired': 'This request has expired or was already answered. Start the connection again from the agent.',
+  'consent.badClient': 'This agent is not registered (or was removed). An administrator must register it first.',
+  'consent.badRedirect': 'The return address of this request is not one registered for the agent, so it was refused.',
+  'consent.loadError': 'Could not load the request.',
+  'consent.decideError': 'Could not save your decision.',
+
   // 404
   'nf.title': 'Nothing at this address.',
   'nf.text': "The page you were looking for doesn't exist, moved, or never did. Fuzzing the URL won't help either.",

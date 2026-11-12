@@ -14,3 +14,10 @@ const { privateKey, publicKey } = generateKeyPairSync("ed25519");
 process.env.AGENT_API_PUBLIC_KEY = publicKey.export({ type: "spki", format: "pem" }).toString();
 process.env.TEST_AGENT_API_PRIVATE_KEY = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
 process.env.MAX_OPEN_CHANGE_REQUESTS = "3";
+
+// Access-token signing key of the authorization server
+const oauth = generateKeyPairSync("ed25519");
+process.env.OAUTH_SIGNING_KEY = oauth.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+process.env.TEST_OAUTH_PUBLIC_KEY = oauth.publicKey.export({ type: "spki", format: "pem" }).toString();
+process.env.OAUTH_ISSUER = "https://stealthdebug.test";
+process.env.MCP_RESOURCE = "https://mcp.stealthdebug.test/mcp";

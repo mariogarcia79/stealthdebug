@@ -4,6 +4,7 @@ import helmet from "helmet";
 import routes from "./routes/index";
 import compression from "compression";
 import { errorHandler } from "./middleware/error.middleware";
+import OAuthController from "./controllers/oauth.controller";
 
 const app = express();
 
@@ -15,6 +16,9 @@ app.use(helmet({ contentSecurityPolicy: false })); // CSP is enforced at the ngi
 app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
+// OAuth authorization server metadata (RFC 8414) lives at the site's root,
+// where clients look for it for the issuer https://stealthdebug.org
+app.get("/.well-known/oauth-authorization-server", OAuthController.metadata);
 app.use("/api", routes);
 
 // Must come last: turns every thrown/forwarded error into a JSON response

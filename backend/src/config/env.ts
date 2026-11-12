@@ -16,6 +16,13 @@ export const env = {
   // Public key (PEM, Ed25519) of the MCP server's service credential. Unset:
   // the agent API answers 503.
   agentApiPublicKey: process.env.AGENT_API_PUBLIC_KEY || "",
+  // OAuth authorization server (agents connecting through the MCP server)
+  oauthIssuer: (process.env.OAUTH_ISSUER || process.env.SITE_URL || "https://stealthdebug.org").replace(/\/+$/, ""),
+  // Private key (PEM, Ed25519) signing access tokens; the MCP server has the
+  // public half. Unset: the token endpoint answers 503.
+  oauthSigningKey: process.env.OAUTH_SIGNING_KEY || "",
+  // Canonical URI of the MCP server (RFC 8707 resource, the tokens' audience)
+  mcpResource: process.env.MCP_RESOURCE || "https://mcp.stealthdebug.org/mcp",
   // Limits for agents' change requests
   maxOpenChangeRequests: Number(process.env.MAX_OPEN_CHANGE_REQUESTS) || 10,
 } as const;

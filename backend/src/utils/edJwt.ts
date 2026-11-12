@@ -5,7 +5,6 @@ import { createPrivateKey, createPublicKey, sign, verify, KeyObject } from "cryp
 // checks iss, aud, exp and the maximum lifetime itself.
 
 const b64u = (b: Buffer | string) => Buffer.from(b).toString("base64url");
-const HEADER = b64u(JSON.stringify({ alg: "EdDSA", typ: "JWT" }));
 
 export interface JwtClaims {
   iss: string;
@@ -26,25 +25,28 @@ export function readKey(pem: string, kind: "private" | "public"): KeyObject {
   return key;
 }
 
-export function signJwt(claims: Omit<JwtClaims, "iat" | "exp">, key: KeyObject, ttlSeconds: number): string {
+// typ: "JWT", or "at+jwt" for OAuth access tokens (RFC 9068)
+export function signJwt(claims: Omit<JwtClaims, "iat" | "exp">, key: KeyObject, ttlSeconds: number, typ = "JWT"): string {
   const now = Math.floor(Date.now() / 1000);
+  const header = b64u(JSON.stringify({ alg: "EdDSA", typ }));
   const body = b64u(JSON.stringify({ ...claims, iat: now, exp: now + ttlSeconds }));
-  const sig = sign(null, Buffer.from(`${HEADER}.${body}`), key);
-  return `${HEADER}.${body}.${b64u(sig)}`;
+  const sig = sign(null, Buffer.from(`${header}.${body}`), key);
+  return `${header}.${body}.${b64u(sig)}`;
 }
 
 export function verifyJwt(
   token: string,
   key: KeyObject,
-  expected: { iss: string; aud: string; maxLifetime: number }
+  expected: { iss: string; aud: string; maxLifetime: number; typ?: string }
 ): JwtClaims {
   const parts = typeof token === "string" ? token.split(".") : [];
   if (parts.length !== 3) throw new JwtError("malformed");
   const [h, b, s] = parts;
 
-  let header: { alg?: unknown; crit?: unknown };
+  let header: { alg?: unknown; crit?: unknown; typ?: unknown };
   try { header = JSON.parse(Buffer.from(h, "base64url").toString()); } catch { throw new JwtError("malformed"); }
   if (header.alg !== "EdDSA" || header.crit !== undefined) throw new JwtError("bad header");
+  if (expected.typ && header.typ !== expected.typ) throw new JwtError("bad typ");
 
   if (!verify(null, Buffer.from(`${h}.${b}`), key, Buffer.from(s, "base64url"))) throw new JwtError("bad signature");
 

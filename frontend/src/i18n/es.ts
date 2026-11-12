@@ -194,6 +194,26 @@ const es: Record<MessageKey, string> = {
   'about.empty': 'Todavía no hay nada aquí.',
   'about.loadError': 'No se pudo cargar esta página.',
 
+  // consentimiento de agentes (OAuth)
+  'consent.title': 'Conectar un agente',
+  'consent.lead': '{agent} pide acceso a este blog a través de su servidor MCP.',
+  'consent.agent': 'agente',
+  'consent.client': 'cliente',
+  'consent.redirect': 'vuelve a',
+  'consent.scopes': 'acceso',
+  'consent.scope.postsRead': 'leer los artículos, borradores incluidos (no los ocultos a los agentes)',
+  'consent.scope.changesWrite': 'proponer cambios, artículos nuevos y traducciones para que los revises',
+  'consent.never': 'Los agentes nunca ven los comentarios ni cambian el sitio por sí mismos: cada cambio espera tu revisión. Puedes revocar este acceso cuando quieras.',
+  'consent.approve': 'aprobar',
+  'consent.deny': 'denegar',
+  'consent.leaving': 'Volviendo al agente…',
+  'consent.adminOnly': 'Solo un administrador puede conectar un agente.',
+  'consent.expired': 'Esta solicitud ha caducado o ya se respondió. Vuelve a iniciar la conexión desde el agente.',
+  'consent.badClient': 'Este agente no está registrado (o se eliminó). Un administrador tiene que registrarlo primero.',
+  'consent.badRedirect': 'La dirección de vuelta de esta solicitud no es una de las registradas para el agente, así que se ha rechazado.',
+  'consent.loadError': 'No se pudo cargar la solicitud.',
+  'consent.decideError': 'No se pudo guardar tu decisión.',
+
   // 404
   'nf.title': 'No hay nada en esta dirección.',
   'nf.text': 'La página que buscabas no existe, se ha movido o nunca existió. Hacer fuzzing de la URL tampoco va a ayudar.',

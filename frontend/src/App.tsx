@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Navbar from "./components/page/Navbar";
 import Home from "./components/page/Home";
 import SignUp from './components/auth/SignUp';
+import Consent from './components/oauth/Consent';
 import LogIn from './components/auth/LogIn';
 import BlogList from './components/blog/BlogList';
 import BlogPost from './components/blog/BlogPost';
@@ -42,6 +43,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/login" element={<LogIn />} />
+          <Route path="/oauth/consent" element={<Consent />} />
           <Route path="/blog" element={<BlogList />} />
 
           <Route
