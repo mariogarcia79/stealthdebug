@@ -94,6 +94,7 @@ class AgentApiController {
   static async createChangeRequest(req: Request, res: Response): Promise<Response> {
     const body = req.body ?? {};
     const kind = validateKind(body.kind);
+    res.locals.auditDetail = kind;
     if (kind !== "new" && typeof body.postId !== "string") throw new ValidationError("postId is required");
     const cr = await ChangeRequestService.create(agentId(req), {
       kind,

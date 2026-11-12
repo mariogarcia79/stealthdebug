@@ -105,6 +105,7 @@ export const auditCall = (tool: string, target: "post" | "changeRequest" | "none
       post: target === "post" ? id : bodyPost,
       changeRequest: target === "changeRequest" ? id : (res.locals.changeRequestId as string | undefined),
       outcome: res.statusCode < 400 ? "ok" : String(res.statusCode),
+      detail: typeof res.locals.auditDetail === "string" ? res.locals.auditDetail : "",
     });
   });
   next();
