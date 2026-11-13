@@ -6,6 +6,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
 import { isoDate } from '../../utils/format';
 
+// The first image on a line of its own (e.g. the headshot) is shown as a
+// portrait in the right column, where posts have their table of contents;
+// the rest of the markdown is the page.
+const PORTRAIT = /^[ \t]*!\[[^\]\n]*\]\([^)\n]+\)[ \t]*$/m;
+function splitPortrait(content: string): { portrait: string | null; body: string } {
+  const m = PORTRAIT.exec(content);
+  if (!m) return { portrait: null, body: content };
+  return { portrait: m[0].trim(), body: content.slice(0, m.index) + content.slice(m.index + m[0].length) };
+}
+
 // "About me" / CV page. Its content is markdown written in the admin editor
 // (/about/edit); until something is saved it shows as empty.
 function About() {
@@ -24,6 +34,7 @@ function About() {
   }, [t]);
 
   const empty = !page?.content.trim();
+  const { portrait, body } = splitPortrait(page?.content ?? '');
 
   return (
     <div className="wrap about">
@@ -39,17 +50,24 @@ function About() {
           </div>
         )}
       </div>
-      <article className="about-body">
-        {page === undefined ? (
-          <p className="empty loading">{t('account.loading')}</p>
-        ) : page === null ? (
-          <p className="alert error">{t('about.loadError')}</p>
-        ) : empty ? (
-          <p className="empty">{t('about.empty')}</p>
-        ) : (
-          <MarkdownRenderer content={page.content} images={page.images} />
+      <div className={portrait ? 'post-grid about-grid' : undefined}>
+        <article className="about-body">
+          {page === undefined ? (
+            <p className="empty loading">{t('account.loading')}</p>
+          ) : page === null ? (
+            <p className="alert error">{t('about.loadError')}</p>
+          ) : empty ? (
+            <p className="empty">{t('about.empty')}</p>
+          ) : (
+            <MarkdownRenderer content={body} images={page.images} />
+          )}
+        </article>
+        {portrait && page && (
+          <aside className="about-portrait">
+            <MarkdownRenderer content={portrait} images={page.images} />
+          </aside>
         )}
-      </article>
+      </div>
     </div>
   );
 }

@@ -290,6 +290,10 @@ textarea.input.prose-input { font-family: var(--sans); font-size: 15px; }
 
 .post-grid { display: grid; grid-template-columns: minmax(0, 720px) 230px; gap: 72px; }
 .post-grid > aside { min-width: 0; }
+/* About page: portrait in the column posts use for the table of contents */
+.about-portrait { position: sticky; top: calc(var(--nav-h) + 24px); align-self: start; }
+.about-portrait .prose > :first-child { margin-top: 0; }
+.about-portrait img { width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); display: block; }
 
 .toc { position: sticky; top: calc(var(--nav-h) + 24px); font-size: 12.5px; }
 .toc .label { color: var(--meta); margin-bottom: 14px; display: block; }
@@ -561,6 +565,9 @@ textarea.input.prose-input { font-family: var(--sans); font-size: 15px; }
 @media (max-width: 1100px) {
   .post-grid { grid-template-columns: minmax(0, 1fr); }
   .post-grid > aside { display: none; }
+  /* About: the portrait stays, above the text, smaller */
+  .about-grid { gap: 28px; }
+  .about-grid > aside.about-portrait { display: block; order: -1; position: static; max-width: 200px; }
   .legal-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
   .legal-grid > aside .toc { position: static; }
 }
