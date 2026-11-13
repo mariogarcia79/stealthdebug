@@ -1,0 +1,131 @@
+/* ---------------------------------------------------------------------
+   Agents admin: change requests, review, agents, guidelines, audit log.
+   Everything is scoped under .admin-page (components/admin/AdminLayout).
+   --------------------------------------------------------------------- */
+.admin-page { padding-bottom: 80px; }
+.admin-page .page-head { padding-block: 48px 24px; }
+.admin-page .tabs { margin-bottom: 4px; }
+.admin-section { margin-top: 28px; }
+.admin-section > h2 { font: 600 12.5px/1.3 var(--mono); color: var(--meta); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+
+/* change request list: title + description in one cell */
+.cr-kind-lang { color: var(--meta); font-size: 12px; margin-left: 6px; }
+
+/* ---- review (merge screen) */
+.review-head { padding-block: 40px 20px; display: flex; flex-direction: column; gap: 14px; }
+.review-head h1 { font: 700 26px/1.25 var(--mono); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.review-head h1 .kind { color: var(--meta); font-weight: 500; }
+.review-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 12.5px; color: var(--meta); }
+.review-meta b { color: var(--text); font-weight: 500; }
+.review-meta a { color: var(--accent); }
+
+.review-body { display: flex; flex-direction: column; gap: 16px; }
+.agent-note { font-size: 11.5px; color: var(--muted); }
+.description { font: 400 15px/1.65 var(--sans); color: var(--body); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* diff of one field (components/admin/DiffView.tsx) */
+.diff .panel-bar .state { font-size: 11.5px; }
+.diff-scroll { overflow-x: auto; }
+.diff-table { width: 100%; border-collapse: collapse; font: 400 12.5px/1.6 var(--mono); table-layout: fixed; }
+.diff-table td { vertical-align: top; padding: 0 10px; }
+.diff-table td.ln { width: 3.6em; text-align: right; color: var(--muted); user-select: none; border-right: 1px solid var(--line); background: var(--surface); }
+.diff-table td.code { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--body); }
+.diff-table td.del { background: var(--diff-del); color: var(--text); }
+.diff-table td.add { background: var(--diff-add); color: var(--text); }
+.diff-table td.pad { background: var(--diff-pad); }
+.diff-table td.sign { width: 1.6em; padding: 0 0 0 8px; color: var(--muted); user-select: none; }
+.diff-table tr.del td.sign { color: var(--danger-fg); }
+.diff-table tr.add td.sign { color: var(--accent); }
+.diff-table tr.del td.code { background: var(--diff-del); color: var(--text); }
+.diff-table tr.add td.code { background: var(--diff-add); color: var(--text); }
+.diff-table tr.fold td { text-align: center; color: var(--muted); background: var(--diff-pad); font-size: 11.5px; padding-block: 2px; }
+.diff-table tr:first-child td { padding-top: 6px; }
+.diff-table tr:last-child td { padding-bottom: 6px; }
+.diff-unchanged { padding: 12px 14px; font-size: 12.5px; color: var(--muted); }
+
+/* links found in the proposal */
+.link-list { list-style: none; display: flex; flex-direction: column; }
+.link-list li { display: flex; align-items: baseline; gap: 12px; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.link-list li:first-child { border-top: 0; }
+.link-list code { font-family: var(--mono); color: var(--body); overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.link-list li.external code { color: var(--warn-fg); }
+
+/* untrusted preview (MarkdownRenderer untrusted) */
+.untrusted-link code, .untrusted-image code { font-size: 0.85em; color: var(--warn-fg); overflow-wrap: anywhere; }
+.untrusted-link-text { text-decoration: underline dotted; }
+.untrusted-image { display: block; color: var(--meta); font-size: 13px; }
+
+/* history of revisions and reviews */
+.timeline { list-style: none; display: flex; flex-direction: column; }
+.timeline li { position: relative; padding: 12px 14px 12px 34px; border-top: 1px solid var(--line); font-size: 13px; color: var(--body); }
+.timeline li:first-child { border-top: 0; }
+.timeline li::before { content: ""; position: absolute; left: 14px; top: 18px; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-hi); background: var(--bg); }
+.timeline li.accepted::before { background: var(--accent-fill); border-color: var(--accent-fill); }
+.timeline li.declined::before { background: var(--warn-fg); border-color: var(--warn-fg); }
+.timeline .when { color: var(--muted); font-size: 12px; margin-left: 8px; }
+.timeline .review { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line-hi); color: var(--meta); }
+.timeline li.declined .review { border-left-color: var(--warn-line); }
+.timeline li.accepted .review { border-left-color: var(--accent-line); }
+
+/* decision */
+.decision .panel-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 28px; }
+.decision .side { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.decision .side + .side { border-left: 1px solid var(--line); padding-left: 28px; }
+.decision h3 { font: 600 12.5px var(--mono); color: var(--text); }
+.decision p { font-size: 12.5px; color: var(--meta); line-height: 1.55; }
+.decision textarea { width: 100%; }
+
+/* ---- agents */
+.agents-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; margin-top: 28px; }
+.agents-grid > aside { position: sticky; top: calc(var(--nav-h) + 24px); }
+.agent-card.removed { opacity: 0.6; }
+.agent-card .panel-bar h2 { font-size: 14px; }
+.agent-card .panel-body { display: flex; flex-direction: column; gap: 18px; padding: 18px; }
+.agent-card h3 { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+.agent-card .grants { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--body); }
+.agent-card .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12.5px; color: var(--danger-fg); }
+.register form { display: flex; flex-direction: column; gap: 14px; }
+.register .btn { align-self: flex-start; }
+.secret { border-color: var(--warn-line); }
+.secret .panel-bar { color: var(--warn-fg); }
+.secret .panel-body { display: flex; flex-direction: column; gap: 14px; }
+.secret .value { display: flex; gap: 8px; align-items: center; }
+.secret .value code { flex: 1; min-width: 0; font: 400 12.5px var(--mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); padding: 8px 10px; overflow-wrap: anywhere; }
+
+/* ---- guidelines */
+.guidelines { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 28px; align-items: start; }
+.guidelines .panel { margin: 0; }
+.guidelines textarea.input { border: 0; min-height: 520px; padding: 16px 18px; background: transparent; resize: vertical; box-shadow: none; }
+.guidelines .preview { padding: 22px 24px; max-height: 620px; overflow-y: auto; }
+.guidelines .history { grid-column: 1 / -1; }
+.guidelines .old { padding: 16px 18px; border-top: 1px solid var(--line); }
+.guidelines .old pre { font: 400 12.5px/1.6 var(--mono); color: var(--body); white-space: pre-wrap; max-height: 320px; overflow-y: auto; margin-top: 10px; }
+
+/* ---- audit log */
+.table.audit td { font-size: 12.5px; padding-block: 10px; }
+.table.audit .when { color: var(--meta); font-variant-numeric: tabular-nums; }
+.table.audit .detail { max-width: 340px; color: var(--meta); overflow-wrap: anywhere; }
+.table.audit .targets { display: flex; gap: 10px; }
+.table.audit a { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .agents-grid, .guidelines { grid-template-columns: minmax(0, 1fr); }
+  .agents-grid > aside { position: static; order: -1; }
+  .decision .panel-body { grid-template-columns: minmax(0, 1fr); }
+  .decision .side + .side { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 20px; }
+  .guidelines textarea.input { min-height: 360px; }
+}
+
+/* diff: two columns on wide screens, unified on phones */
+.diff-table.unified { display: none; }
+@media (max-width: 720px) {
+  .diff-table.split { display: none; }
+  .diff-table.unified { display: table; }
+}
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.secret label { display: block; font-size: 12px; color: var(--meta); margin-bottom: 6px; }
+.agents-grid > aside { display: flex; flex-direction: column; gap: 16px; }
+.agents-grid > div > .panel + .panel { margin-top: 16px; }
+/* fixed layout takes widths from the colgroup (a fold row may come first) */
+.diff-table col.ln { width: 3.6em; }
+.diff-table col.sign { width: 1.6em; }

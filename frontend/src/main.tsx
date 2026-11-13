@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { AuthProvider } from './context/AuthContext';
 import { I18nProvider } from './i18n';
+import { ThemeProvider } from './theme';
 // Self-hosted fonts (no third-party requests; CSP font-src 'self')
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
@@ -10,7 +11,7 @@ import '@fontsource/jetbrains-mono/700.css';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/400-italic.css';
 import '@fontsource/ibm-plex-sans/600.css';
-import './styles/globals.css';
+import './styles/index.css';
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -19,10 +20,12 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <I18nProvider>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </I18nProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </I18nProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

@@ -20,7 +20,7 @@ import NotFound from './components/error/NotFound';
 const LegalPageLazy = lazy(() => import('./components/legal/LegalPage'));
 type LegalProps = { doc: 'privacy' | 'terms' | 'legal' | 'security'; lang?: 'en' | 'es' };
 const LegalPage = (props: LegalProps) => (
-  <Suspense fallback={<div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>…</p></div>}>
+  <Suspense fallback={<div className="wrap"><p className="empty loading page-msg">…</p></div>}>
     <LegalPageLazy {...props} />
   </Suspense>
 );
@@ -37,7 +37,7 @@ const Admin = ({ page }: { page: keyof typeof lazyAdmin }) => {
   const C = lazyAdmin[page];
   return (
     <ProtectedRoute requiredRole="admin">
-      <Suspense fallback={<div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>…</p></div>}><C /></Suspense>
+      <Suspense fallback={<div className="wrap"><p className="empty loading page-msg">…</p></div>}><C /></Suspense>
     </ProtectedRoute>
   );
 };

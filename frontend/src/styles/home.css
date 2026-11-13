@@ -1,0 +1,31 @@
+/* ---------------------------------------------------------------------
+   Home
+   --------------------------------------------------------------------- */
+.hero { padding-block: 88px 72px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.hero h1 { font: 700 46px/1.12 var(--mono); letter-spacing: -0.02em; margin: 18px 0 20px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .lead { font: 400 17px/1.7 var(--sans); color: var(--body); max-width: 540px; }
+.hero .lead strong { color: var(--text); font-weight: 600; }
+.hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.hero .topics { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 34px; }
+
+.hexdump { font-size: 11.5px; line-height: 1.8; min-width: 0; }
+.hexdump pre {
+  padding: 16px 18px; color: var(--code-punct); font-family: var(--mono); white-space: pre; overflow: hidden;
+  /* decorative: if it doesn't fit, fade the right edge instead of scrolling */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+}
+.hexdump .o { color: var(--line-hi); }
+.hexdump .h, .hexdump .k { color: var(--accent); }
+.hexdump .a { color: var(--text); }
+
+.admin-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; padding: 12px 16px; font-size: 12.5px; color: var(--meta); }
+.admin-strip .grow { flex: 1; }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1fr); padding-block: 44px 40px; gap: 34px; }
+  .hero h1 { font-size: 32px; }
+  .hero .lead { font-size: 16px; }
+  .hexdump { font-size: 10.5px; }
+}

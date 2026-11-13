@@ -4,6 +4,7 @@ import type { User } from '../../types/user';
 import UsersAPI from '../../api/users.api';
 import { useAuth } from '../../context/AuthContext';
 import { isoDate } from '../../utils/format';
+import Badge from '../ui/Badge';
 
 function UserList() {
   const [users, setUsers] = useState<User[]>([]);
@@ -50,13 +51,13 @@ function UserList() {
         </div>
       </div>
 
-      {error && <p className="alert error" style={{ marginBottom: 16 }}>{error}</p>}
+      {error && <p className="alert error mb">{error}</p>}
 
       {loading ? (
         <p className="empty loading">loading users</p>
       ) : (
         <div className="panel table-wrap">
-          <table className="table">
+          <table className="table cards">
             <thead>
               <tr><th>name</th><th>email</th><th>role</th><th>joined</th><th /></tr>
             </thead>
@@ -64,9 +65,9 @@ function UserList() {
               {shown.map((u) => (
                 <tr key={u._id}>
                   <td className="name"><Link to={u._id === _id ? '/dashboard' : `/dashboard/${u._id}`}>{u.name}</Link>{u._id === _id && <span className="muted"> (you)</span>}</td>
-                  <td className="muted">{u.email}</td>
-                  <td><span className={`role ${u.role === 'admin' ? 'admin' : ''}`}>{u.role ?? 'user'}</span></td>
-                  <td className="muted">{u.createdAt ? isoDate(u.createdAt) : ''}</td>
+                  <td data-label="email" className="muted">{u.email}</td>
+                  <td data-label="role"><Badge tone={u.role === 'admin' ? 'ok' : 'neutral'} plain>{u.role ?? 'user'}</Badge></td>
+                  <td data-label="joined" className="muted nowrap">{u.createdAt ? isoDate(u.createdAt) : ''}</td>
                   <td className="actions">
                     {u._id === _id ? null : confirming === u._id ? (
                       <>
@@ -80,7 +81,7 @@ function UserList() {
                 </tr>
               ))}
               {shown.length === 0 && (
-                <tr><td colSpan={5} className="muted">No users match.</td></tr>
+                <tr><td colSpan={5} className="empty-state">No users match.</td></tr>
               )}
             </tbody>
           </table>

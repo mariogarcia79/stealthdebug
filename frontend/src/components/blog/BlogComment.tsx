@@ -39,7 +39,7 @@ function BlogComment({ postId, comment, setComments }: BlogCommentProps) {
           <time dateTime={comment.createdAt}>{isoDateTime(comment.createdAt)}</time>
           {canDelete && (
             confirming ? (
-              <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <span className="comment-actions">
                 <button className="btn sm danger" onClick={remove}>{t("comments.deleteYes")}</button>
                 <button className="btn sm ghost" onClick={() => setConfirming(false)}>{t("comments.cancel")}</button>
               </span>
@@ -49,7 +49,7 @@ function BlogComment({ postId, comment, setComments }: BlogCommentProps) {
           )}
         </div>
         <p>{comment.content}</p>
-        {failed && <p className="alert error" style={{ marginTop: 8 }}>{t("comments.deleteFailed")}</p>}
+        {failed && <p className="alert error mt-sm">{t("comments.deleteFailed")}</p>}
       </div>
     </div>
   );

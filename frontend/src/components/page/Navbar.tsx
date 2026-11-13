@@ -2,6 +2,9 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n, LangSwitch } from '../../i18n';
+import { Menu, MenuLink, MenuItem, MenuSep } from '../ui/Menu';
+import ThemeMenu, { ThemeSwitch } from '../ui/ThemeMenu';
+import Icon from '../ui/Icon';
 
 const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'active' : undefined);
 
@@ -16,9 +19,9 @@ function Search({ onDone, hotkey = false }: { onDone?: () => void; hotkey?: bool
   useEffect(() => {
     if (!hotkey) return;
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
+      const target = e.target as HTMLElement;
       if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       e.preventDefault();
       input.current?.focus();
     };
@@ -38,9 +41,9 @@ function Search({ onDone, hotkey = false }: { onDone?: () => void; hotkey?: bool
 
   return (
     <form className="nav-search" role="search" onSubmit={submit}>
-      <label className="visually-hidden" htmlFor="nav-search">{t('nav.search')}</label>
+      <label className="visually-hidden" htmlFor={hotkey ? 'nav-search' : 'nav-search-menu'}>{t('nav.search')}</label>
       <input
-        id="nav-search"
+        id={hotkey ? 'nav-search' : 'nav-search-menu'}
         ref={input}
         className="input"
         type="search"
@@ -53,12 +56,20 @@ function Search({ onDone, hotkey = false }: { onDone?: () => void; hotkey?: bool
   );
 }
 
+// Admin tools in one place: writing, users, agents
+const ADMIN_LINKS = [
+  { to: '/blog/new', key: 'nav.newPost', icon: 'plus' },
+  { to: '/users', key: 'nav.users', icon: 'user' },
+  { to: '/admin/changes', key: 'nav.agents', icon: 'shield' },
+] as const;
+
 function Navbar() {
   const { role, isLoggedIn, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { t } = useI18n();
   const isAdmin = isLoggedIn && role === 'admin';
+  const at = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   useEffect(() => setOpen(false), [location.pathname]);
 
@@ -67,21 +78,6 @@ function Navbar() {
       <NavLink to="/" end className={linkClass}>{t('nav.home')}</NavLink>
       <NavLink to="/blog" className={linkClass}>{t('nav.blog')}</NavLink>
       <NavLink to="/about" className={linkClass}>{t('nav.about')}</NavLink>
-      {isAdmin && <NavLink to="/users" className={linkClass}>{t('nav.users')}</NavLink>}
-      {isAdmin && <NavLink to="/admin/changes" className={linkClass}>{t('nav.agents')}</NavLink>}
-      {isLoggedIn && <NavLink to="/dashboard" className={linkClass}>{t('nav.account')}</NavLink>}
-    </>
-  );
-
-  const account = isLoggedIn ? (
-    <>
-      {isAdmin && <Link to="/blog/new" className="btn sm">{t('nav.newPost')}</Link>}
-      <button type="button" onClick={logout}>{t('nav.logout')}</button>
-    </>
-  ) : (
-    <>
-      <NavLink to="/login" className={linkClass}>{t('nav.login')}</NavLink>
-      <Link to="/signup" className="btn sm">{t('nav.signup')}</Link>
     </>
   );
 
@@ -96,7 +92,24 @@ function Navbar() {
         <div className="nav-right">
           <Search hotkey />
           <LangSwitch />
-          {account}
+          <ThemeMenu />
+          {isAdmin && (
+            <Menu label={<>{t('nav.admin')}<Icon name="caret" className="caret" /></>}>
+              {ADMIN_LINKS.map((l) => <MenuLink key={l.to} to={l.to} icon={l.icon} active={at(l.to)}>{t(l.key)}</MenuLink>)}
+            </Menu>
+          )}
+          {isLoggedIn ? (
+            <Menu triggerClassName="icon-btn" ariaLabel={t('nav.account')} label={<Icon name="user" />}>
+              <MenuLink to="/dashboard" icon="user" active={at('/dashboard')}>{t('nav.account')}</MenuLink>
+              <MenuSep />
+              <MenuItem icon="logout" onSelect={logout}>{t('nav.logout')}</MenuItem>
+            </Menu>
+          ) : (
+            <>
+              <NavLink to="/login" className={linkClass}>{t('nav.login')}</NavLink>
+              <Link to="/signup" className="btn sm">{t('nav.signup')}</Link>
+            </>
+          )}
         </div>
         <button
           type="button"
@@ -109,11 +122,35 @@ function Navbar() {
           <i />
         </button>
       </div>
+
       <nav id="nav-menu" className={`nav-menu ${open ? 'open' : ''}`} aria-label={t('nav.menu')}>
-        <Search onDone={() => setOpen(false)} />
-        {links}
-        {account}
-        <LangSwitch />
+        <div className="group">
+          <Search onDone={() => setOpen(false)} />
+          {links}
+        </div>
+        {isAdmin && (
+          <div className="group">
+            <span className="group-label">{t('nav.admin')}</span>
+            {ADMIN_LINKS.map((l) => <NavLink key={l.to} to={l.to} className={linkClass}>{t(l.key)}</NavLink>)}
+          </div>
+        )}
+        <div className="group">
+          {isLoggedIn ? (
+            <>
+              <NavLink to="/dashboard" className={linkClass}>{t('nav.account')}</NavLink>
+              <button type="button" className="nav-item" onClick={logout}>{t('nav.logout')}</button>
+            </>
+          ) : (
+            <>
+              <NavLink to="/login" className={linkClass}>{t('nav.login')}</NavLink>
+              <NavLink to="/signup" className={linkClass}>{t('nav.signup')}</NavLink>
+            </>
+          )}
+          <div className="settings-row">
+            <LangSwitch />
+            <ThemeSwitch />
+          </div>
+        </div>
       </nav>
     </header>
   );

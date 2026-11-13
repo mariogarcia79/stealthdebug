@@ -1,0 +1,51 @@
+
+/* legal pages */
+.legal-grid { display: grid; grid-template-columns: minmax(0, 760px) 230px; gap: 72px; }
+.legal-grid > aside { min-width: 0; }
+.legal .prose table { display: table; }
+.about-body { max-width: 760px; padding-bottom: 64px; }
+.about .prose table { display: table; }
+.legal .prose td:first-child { white-space: nowrap; }
+
+/* ---------------------------------------------------------------------
+   404
+   --------------------------------------------------------------------- */
+.nf { padding-block: 120px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.nf .code { font: 700 120px/1 var(--mono); letter-spacing: -0.04em; color: var(--surface-2); -webkit-text-stroke: 1px var(--line-hi); }
+.nf h1 { font: 700 30px/1.2 var(--mono); margin: 18px 0 14px; }
+.nf p { font: 400 16px/1.65 var(--sans); color: var(--body); }
+.nf .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.nf pre { padding: 18px; font: 400 13.5px/1.9 var(--mono); color: var(--body); overflow-x: auto; }
+.nf pre .ps { color: var(--accent); }
+.nf pre .er { color: var(--danger-fg); }
+.nf pre .cur { display: inline-block; width: 8px; height: 15px; background: var(--accent-fill); transform: translateY(3px); animation: blink 1s steps(1) infinite; }
+
+.stack { display: flex; flex-direction: column; gap: 24px; max-width: 760px; }
+.settings .panel-body { display: flex; flex-direction: column; gap: 16px; }
+.settings .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.settings .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.settings.danger { border-color: var(--danger-line); }
+.settings.danger .panel-bar { color: var(--danger-fg); }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px 16px; font-size: 13.5px; }
+.kv dt { color: var(--meta); }
+
+@media (max-width: 1100px) {
+  /* About: the portrait stays, above the text, smaller */
+  .about-grid { gap: 28px; }
+  .about-grid > aside.about-portrait { display: block; order: -1; position: static; max-width: 200px; }
+  .legal-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .legal-grid > aside .toc { position: static; }
+}
+
+@media (max-width: 900px) {
+  .legal .prose table { display: block; }
+  .legal .prose td:first-child { white-space: normal; }
+  .nf { grid-template-columns: minmax(0, 1fr); padding-block: 56px 0; gap: 32px; }
+  .nf .code { font-size: 84px; }
+  .settings .grid-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* About page: portrait in the column posts use for the table of contents */
+.about-portrait { position: sticky; top: calc(var(--nav-h) + 24px); align-self: start; }
+.about-portrait .prose > :first-child { margin-top: 0; }
+.about-portrait img { width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); display: block; }

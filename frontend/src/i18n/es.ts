@@ -18,6 +18,12 @@ const es: Record<MessageKey, string> = {
   'nav.menu': 'Menú',
   'nav.main': 'Principal',
   'nav.homeLabel': 'inicio de stealthdebug',
+  'nav.admin': 'admin',
+  'nav.signedIn': 'Sesión iniciada como',
+  'theme.label': 'Tema',
+  'theme.dark': 'Oscuro',
+  'theme.light': 'Claro',
+  'theme.system': 'Sistema',
   'lang.label': 'Idioma',
   'lang.switchTo': 'View in English',
 

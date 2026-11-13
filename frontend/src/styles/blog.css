@@ -1,0 +1,109 @@
+/* ---------------------------------------------------------------------
+   Post list
+   --------------------------------------------------------------------- */
+.posts { display: flex; flex-direction: column; }
+.post-row {
+  display: grid; grid-template-columns: 150px minmax(0, 1fr) 220px; gap: 32px;
+  padding-block: 26px; border-top: 1px solid var(--line); align-items: start;
+}
+.post-row:last-child { border-bottom: 1px solid var(--line); }
+.post-row.no-cover { grid-template-columns: 150px minmax(0, 1fr); }
+.post-row .meta { font-size: 12.5px; color: var(--meta); display: flex; flex-direction: column; gap: 6px; padding-top: 3px; }
+.post-row .meta .idx { color: var(--line-hi); }
+.post-row h3 { font: 700 19px/1.4 var(--mono); letter-spacing: -0.01em; margin-bottom: 10px; transition: color .15s; }
+.post-row h3 a:hover { color: var(--accent); }
+.post-row p { font: 400 15px/1.65 var(--sans); color: var(--body); }
+.post-row .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.post-row .draft { color: var(--danger-fg); }
+.post-row .thumb { display: block; aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.post-row .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(0.85); transition: filter .2s, transform .3s; }
+.post-row:hover .thumb img { filter: saturate(1); transform: scale(1.02); }
+
+.year-group + .year-group { margin-top: 48px; }
+
+/* ---------------------------------------------------------------------
+   Post page
+   --------------------------------------------------------------------- */
+.post-head { padding-block: 56px 36px; max-width: 840px; }
+.crumbs { font-size: 12.5px; color: var(--meta); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--accent); }
+.crumbs .admin-actions { margin-left: auto; display: flex; gap: 8px; }
+.post-head h1 { font: 700 40px/1.18 var(--mono); letter-spacing: -0.02em; margin: 18px 0; overflow-wrap: anywhere; }
+.post-head .lead { font: 400 19px/1.65 var(--sans); color: var(--body); }
+.post-meta { display: flex; gap: 10px 22px; align-items: center; margin-top: 24px; font-size: 12.5px; color: var(--meta); flex-wrap: wrap; }
+.post-meta time { color: var(--text); font-weight: 500; }
+.post-meta .series { color: var(--accent); }
+.post-meta .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.post-grid { display: grid; grid-template-columns: minmax(0, 720px) 230px; gap: 72px; }
+.post-grid > aside { min-width: 0; }
+
+.toc { position: sticky; top: calc(var(--nav-h) + 24px); font-size: 12.5px; }
+.toc .label { color: var(--meta); margin-bottom: 14px; display: block; }
+.toc ol { list-style: none; border-left: 1px solid var(--line); }
+.toc li a { display: block; padding: 6px 0 6px 14px; color: var(--meta); margin-left: -1px; border-left: 2px solid transparent; line-height: 1.45; transition: color .15s; }
+.toc li a:hover { color: var(--text); }
+.toc li.active a { color: var(--text); border-left-color: var(--accent); }
+.toc li.sub a { padding-left: 26px; font-size: 12px; }
+.toc .progress { margin-top: 22px; color: var(--meta); }
+.toc .bar { height: 2px; background: var(--line); margin-top: 8px; }
+.toc .bar i { display: block; height: 100%; background: var(--accent); transition: width .1s linear; }
+.toc .actions { margin-top: 26px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; color: var(--meta); }
+.toc .actions button:hover { color: var(--text); }
+
+.series-box { padding: 16px 18px; margin-bottom: 36px; }
+.series-box .label { font-size: 12px; color: var(--meta); margin-bottom: 10px; display: block; }
+.series-box .label b { color: var(--accent); font-weight: 500; }
+.series-box ol { list-style: none; counter-reset: part; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.series-box li { counter-increment: part; color: var(--meta); }
+.series-box li::before { content: counter(part) ". "; color: var(--line-hi); }
+.series-box li a:hover { color: var(--accent); }
+.series-box li.current { color: var(--text); }
+
+.post-end { margin-top: 56px; border-top: 1px solid var(--line); padding-top: 36px; }
+.nextprev { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 64px; }
+.nextprev a { display: block; padding: 18px 20px; transition: border-color .15s; }
+.nextprev a:hover { border-color: var(--accent); }
+.nextprev small { color: var(--meta); font-size: 12px; display: block; margin-bottom: 8px; }
+.nextprev b { font-size: 14.5px; line-height: 1.45; display: block; }
+.nextprev .r { text-align: right; grid-column: 2; }
+/* ---------------------------------------------------------------------
+   Comments
+   --------------------------------------------------------------------- */
+.comments { margin-bottom: 24px; }
+.comment { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; padding-block: 18px; border-top: 1px solid var(--line); }
+.avatar {
+  width: 36px; height: 36px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line);
+  display: grid; place-items: center; font-size: 12px; color: var(--accent); text-transform: lowercase;
+}
+.comment .who { font-size: 12.5px; color: var(--meta); margin-bottom: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.comment .who b { color: var(--text); font-weight: 500; }
+.comment .who .badge { color: var(--accent); }
+.comment .who .deleted { font-style: italic; }
+.comment .who .btn { margin-left: auto; }
+.comment p { font: 400 15.5px/1.65 var(--sans); color: var(--body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.composer { margin-block: 18px 8px; padding: 16px; }
+.composer .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 12px; color: var(--meta); }
+.composer-login { padding: 16px 18px; font-size: 13px; color: var(--meta); margin-block: 18px 8px; }
+.composer-login a { color: var(--accent); }
+/* ---- agent attribution and languages on posts */
+.post-meta .byline { color: var(--text); }
+.agent-banner { margin-top: 18px; padding: 12px 16px; border: 1px solid var(--accent-line); border-left-width: 3px; border-radius: var(--radius); background: var(--accent-bg); font: 400 14px/1.6 var(--sans); color: var(--body); }
+.also-in { margin-top: 12px; font-size: 13px; color: var(--meta); display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+
+@media (max-width: 1100px) {
+  .post-grid { grid-template-columns: minmax(0, 1fr); }
+  .post-grid > aside { display: none; }
+}
+
+@media (max-width: 900px) {
+  .post-row, .post-row.no-cover { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-block: 22px; }
+  .post-row .thumb { order: -1; }
+  .post-row .meta { flex-direction: row; flex-wrap: wrap; gap: 14px; }
+  .post-row h3 { font-size: 17px; }
+  .post-head { padding-block: 34px 26px; }
+  .post-head h1 { font-size: 27px; }
+  .post-head .lead { font-size: 17px; }
+  .nextprev { grid-template-columns: 1fr; }
+  .nextprev .r { grid-column: auto; }
+}

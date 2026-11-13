@@ -5,6 +5,7 @@ import MarkdownRenderer from '../blog/MarkdownRenderer';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n';
 import { isoDate } from '../../utils/format';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 // The first image on a line of its own (e.g. the headshot) is shown as a
 // portrait in the right column, where posts have their table of contents;
@@ -28,10 +29,7 @@ function About() {
     PagesAPI.get('about').then(setPage).catch(() => setPage(null));
   }, []);
 
-  useEffect(() => {
-    document.title = `${t('about.title')} · stealthdebug`;
-    return () => { document.title = 'stealthdebug'; };
-  }, [t]);
+  useDocumentTitle(t('about.title'));
 
   const empty = !page?.content.trim();
   const { portrait, body } = splitPortrait(page?.content ?? '');

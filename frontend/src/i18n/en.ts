@@ -18,6 +18,12 @@ const en = {
   'nav.menu': 'Menu',
   'nav.main': 'Main',
   'nav.homeLabel': 'stealthdebug home',
+  'nav.admin': 'admin',
+  'nav.signedIn': 'Signed in as',
+  'theme.label': 'Theme',
+  'theme.dark': 'Dark',
+  'theme.light': 'Light',
+  'theme.system': 'System',
   'lang.label': 'Language',
   'lang.switchTo': 'Ver en español',
 

@@ -23,7 +23,7 @@ function DataNotice() {
       <h2 id="data-notice-title">{t('auth.notice.title')}</h2>
       <dl>
         {NOTICE.map(([k, v]) => (
-          <div key={k} style={{ display: 'contents' }}>
+          <div key={k} className="contents">
             <dt>{t(k)}</dt><dd>{t(v)}</dd>
           </div>
         ))}

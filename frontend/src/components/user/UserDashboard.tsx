@@ -85,9 +85,9 @@ const UserDashboard = () => {
     }
   };
 
-  if (isLoading || loading) return <div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>{t("account.loading")}</p></div>;
-  if (!contextUserId) return <div className="wrap"><p className="empty" style={{ paddingTop: 64 }}>{t("account.mustLogin1")}<Link to="/login" className="link">{t("account.mustLogin2")}</Link>.</p></div>;
-  if (!userData) return <div className="wrap"><p className="empty" style={{ paddingTop: 64 }}>{t("account.notFound")} <Link to={role === "admin" ? "/users" : "/"} className="link">{t("account.goBack")}</Link></p></div>;
+  if (isLoading || loading) return <div className="wrap"><p className="empty loading page-msg">{t("account.loading")}</p></div>;
+  if (!contextUserId) return <div className="wrap"><p className="empty page-msg">{t("account.mustLogin1")}<Link to="/login" className="link">{t("account.mustLogin2")}</Link>.</p></div>;
+  if (!userData) return <div className="wrap"><p className="empty page-msg">{t("account.notFound")} <Link to={role === "admin" ? "/users" : "/"} className="link">{t("account.goBack")}</Link></p></div>;
 
   // An admin can't delete their own account from here (avoids locking yourself out)
   const canDelete = viewingOther || role !== "admin";
@@ -146,7 +146,7 @@ const UserDashboard = () => {
           <section className="panel settings">
             <div className="panel-bar"><span>{t("account.yourData")}</span></div>
             <div className="panel-body">
-              <p className="muted" style={{ fontSize: 13 }}>
+              <p className="muted note">
                 {t("account.yourDataText")} <Link to="/privacy" className="link">{t("account.privacyLink")}</Link>
               </p>
             </div>
@@ -156,7 +156,7 @@ const UserDashboard = () => {
         <section className="panel settings danger">
           <div className="panel-bar"><span>{t("account.danger")}</span></div>
           <div className="panel-body">
-            <p className="muted" style={{ fontSize: 13 }}>
+            <p className="muted note">
               {!canDelete ? t("account.adminNoDelete") : viewingOther ? t("account.deleteInfoOther") : t("account.deleteInfo")}
             </p>
             <div className="actions">

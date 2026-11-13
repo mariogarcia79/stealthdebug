@@ -1,0 +1,96 @@
+/* ---------------------------------------------------------------------
+   Navbar
+   --------------------------------------------------------------------- */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: var(--nav-bg);
+  backdrop-filter: blur(10px);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.nav .wrap { display: flex; align-items: center; height: var(--nav-h); gap: 28px; }
+.brand { font: 700 15px var(--mono); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.brand .mark {
+  width: 26px; height: 26px; border: 1px solid var(--accent); border-radius: var(--radius);
+  display: grid; place-items: center; font-size: 11px; color: var(--accent); background: var(--accent-bg);
+}
+.brand .slash { color: var(--accent); }
+.brand .cursor {
+  display: inline-block; width: 8px; height: 15px; background: var(--accent-fill);
+  margin-left: 2px; transform: translateY(2px); animation: blink 1.2s steps(1) infinite;
+}
+.nav-links { display: flex; gap: 22px; margin-left: 8px; font-size: 13.5px; color: var(--meta); align-self: stretch; }
+.nav-links a { display: flex; align-items: center; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a.active { color: var(--text); border-bottom-color: var(--accent); }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--meta); }
+.nav-right > a:not(.btn):hover { color: var(--text); }
+.nav-search { position: relative; width: 200px; }
+.nav-search .input { padding: 6px 30px 6px 10px; font-size: 12px; background: transparent; border-color: var(--line); }
+.nav-search kbd {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  font: 400 11px var(--mono); color: var(--line-hi); border: 1px solid var(--line); padding: 0 5px; border-radius: var(--radius);
+}
+.nav-burger { display: none; margin-left: auto; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: var(--radius); place-items: center; }
+.nav-burger i, .nav-burger i::before, .nav-burger i::after { display: block; width: 14px; height: 1.5px; background: var(--text); position: relative; }
+.nav-burger i::before, .nav-burger i::after { content: ""; position: absolute; left: 0; }
+.nav-burger i::before { top: -5px; }
+.nav-burger i::after { top: 5px; }
+.nav-menu { display: none; }
+
+/* mobile menu: groups of links, then the settings */
+.nav-menu .group { display: flex; flex-direction: column; padding-block: 6px; }
+.nav-menu .group + .group { border-top: 1px solid var(--line); }
+.nav-menu .group-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 8px 0 2px; }
+.nav-menu .settings-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 12px; }
+
+/* EN / ES switch */
+.lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); }
+.lang-switch button { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 8px; color: var(--meta); }
+.lang-switch button + button { border-left: 1px solid var(--line); }
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button[aria-pressed="true"] { color: var(--on-accent); background: var(--accent-fill); }
+
+/* ---------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------- */
+.footer { border-top: 1px solid var(--line); margin-top: 96px; font-size: 12.5px; color: var(--meta); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.footer .wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 24px; min-height: 64px; padding-block: 16px; }
+.footer .status { color: var(--accent); }
+.footer .sep { color: var(--line-hi); }
+.footer .right { margin-left: auto; display: flex; gap: 20px; }
+.footer .legal-links { display: flex; flex-wrap: wrap; gap: 6px 18px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 12px; }
+.footer a:hover { color: var(--text); }
+
+/* ---------------------------------------------------------------------
+   Page header (list pages, dashboard...)
+   --------------------------------------------------------------------- */
+.page-head { padding-block: 64px 40px; display: flex; align-items: flex-end; flex-wrap: wrap; gap: 24px; }
+.page-head h1 { font: 700 36px/1.1 var(--mono); letter-spacing: -0.02em; margin-top: 12px; }
+.page-head p { font: 400 16px/1.6 var(--sans); color: var(--body); margin-top: 10px; max-width: 620px; }
+.page-head .tools { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.page-head .tools .input { width: 260px; }
+
+/* the full navbar needs ~1000px; below that, the burger menu */
+@media (max-width: 1060px) {
+  .nav-links, .nav-right { display: none; }
+  .nav-burger { display: grid; }
+  .nav-menu.open {
+    display: flex; flex-direction: column;
+    border-top: 1px solid var(--line); padding: 10px 20px 18px; font-size: 14px;
+    max-height: calc(100dvh - var(--nav-h)); overflow-y: auto;
+  }
+  .nav-menu a, .nav-menu button.nav-item { padding: 9px 0; color: var(--meta); text-align: left; }
+  .nav-menu a.active { color: var(--accent); }
+  .nav-menu .nav-search { width: 100%; margin-bottom: 6px; }
+  .nav-menu .lang-switch button { padding: 6px 12px; }
+}
+
+@media (max-width: 900px) {
+  .page-head { padding-block: 40px 28px; }
+  .page-head h1 { font-size: 30px; }
+  .page-head .tools { margin-left: 0; width: 100%; }
+  .page-head .tools .input { width: 100%; }
+  .footer .right { margin-left: 0; }
+  .footer .sep { display: none; }
+}

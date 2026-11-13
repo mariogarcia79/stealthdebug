@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import AdminAPI, { type ChangeKind, type ChangeRequestSummary, type ChangeStatus, type Agent } from '../../api/admin.api';
-import { AdminHead, when } from './AdminNav';
+import AdminAPI, { type Agent, type ChangeKind, type ChangeRequestSummary, type ChangeStatus } from '../../api/admin.api';
+import { isoDateTime } from '../../utils/format';
+import AdminLayout, { StatusBadge } from './AdminLayout';
 
 const KINDS: { kind: ChangeKind; label: string }[] = [
-  { kind: 'edit', label: 'Edit' }, { kind: 'new', label: 'New' }, { kind: 'translation', label: 'Translation' },
+  { kind: 'edit', label: 'Edits' }, { kind: 'new', label: 'New posts' }, { kind: 'translation', label: 'Translations' },
 ];
 const STATUSES: (ChangeStatus | '')[] = ['open', 'outdated', 'declined', 'accepted', 'closed', ''];
 
-// /admin/changes: agents' change requests by kind, filtered by status and agent
+// /admin/changes: agents' change requests by kind, filtered by status and
+// agent (kept in the URL, so a filtered list can be bookmarked)
 export default function ChangeRequestList() {
   const [params, setParams] = useSearchParams();
   const kind = (params.get('kind') as ChangeKind) || 'edit';
@@ -18,64 +20,70 @@ export default function ChangeRequestList() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState('');
 
-  const set = (k: string, v: string) => { const p = new URLSearchParams(params); p.set(k, v); setParams(p, { replace: true }); };
+  const setParam = (k: string, v: string) => {
+    const p = new URLSearchParams(params);
+    p.set(k, v);
+    setParams(p, { replace: true });
+  };
 
   useEffect(() => { AdminAPI.agents().then(setAgents).catch(() => {}); }, []);
   useEffect(() => {
     setList(null);
+    setError('');
     AdminAPI.changeRequests({ kind, status, agent: agent || undefined })
-      .then(setList).catch((e) => setError(String(e.message)));
+      .then(setList)
+      .catch((e) => setError(String(e.message)));
   }, [kind, status, agent]);
 
-  useEffect(() => { document.title = 'Change requests · stealthdebug'; return () => { document.title = 'stealthdebug'; }; }, []);
-
   return (
-    <div className="wrap admin">
-      <AdminHead title="Change requests" lead="What agents propose. Nothing reaches the site until you accept it." />
-      <div className="cr-filters">
+    <AdminLayout title="Change requests" lead="What agents propose. Nothing reaches the site until you accept it.">
+      <div className="toolbar">
         <div className="seg" role="tablist" aria-label="Kind">
           {KINDS.map((k) => (
-            <button key={k.kind} role="tab" aria-selected={kind === k.kind} className={kind === k.kind ? 'on' : ''} onClick={() => set('kind', k.kind)}>{k.label}</button>
+            <button key={k.kind} type="button" role="tab" aria-selected={kind === k.kind} onClick={() => setParam('kind', k.kind)}>{k.label}</button>
           ))}
         </div>
-        <label>status{' '}
-          <select className="input sm" value={status} onChange={(e) => set('status', e.target.value)}>
+        <span className="grow" />
+        <label>status
+          <select className="select" value={status} onChange={(e) => setParam('status', e.target.value)}>
             {STATUSES.map((s) => <option key={s} value={s}>{s || 'any'}</option>)}
           </select>
         </label>
-        <label>agent{' '}
-          <select className="input sm" value={agent} onChange={(e) => set('agent', e.target.value)}>
+        <label>agent
+          <select className="select" value={agent} onChange={(e) => setParam('agent', e.target.value)}>
             <option value="">any</option>
             {agents.map((a) => <option key={a._id} value={a._id}>{a.name}{a.deletedAt ? ' (removed)' : ''}</option>)}
           </select>
         </label>
       </div>
 
-      {error && <div className="alert error" role="alert">{error}</div>}
-      {list === null && !error && <p className="muted">loading…</p>}
-      {list?.length === 0 && <p className="muted">No change requests here.</p>}
-      {list && list.length > 0 && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>request</th><th>agent</th><th>status</th><th>rev.</th><th>updated</th></tr></thead>
+      {error && <p className="alert error" role="alert">{error}</p>}
+      <div className="panel table-wrap">
+        {list === null && !error && <p className="empty-state loading">loading</p>}
+        {list?.length === 0 && (
+          <div className="empty-state"><b>Nothing here.</b>No {status || ''} {KINDS.find((k) => k.kind === kind)?.label.toLowerCase()} from agents.</div>
+        )}
+        {list && list.length > 0 && (
+          <table className="table cards">
+            <thead><tr><th>request</th><th>agent</th><th>status</th><th className="num">rev.</th><th>updated</th></tr></thead>
             <tbody>
               {list.map((cr) => (
                 <tr key={cr._id}>
                   <td className="name">
                     <Link to={`/admin/changes/${cr._id}`}>{cr.title ?? '(untitled)'}</Link>
-                    {cr.kind === 'translation' && cr.lang && <span className="muted"> → {cr.lang}</span>}
-                    <div className="muted cr-desc">{cr.description}</div>
+                    {cr.kind === 'translation' && cr.lang && <span className="cr-kind-lang">→ {cr.lang}</span>}
+                    <span className="sub" title={cr.description}>{cr.description}</span>
                   </td>
-                  <td>{cr.agent.name}</td>
-                  <td><span className={`cr-status ${cr.status}`}>{cr.status}</span></td>
-                  <td>{cr.revisions}</td>
-                  <td className="muted">{when(cr.updatedAt)}</td>
+                  <td data-label="agent">{cr.agent.name}</td>
+                  <td data-label="status"><StatusBadge status={cr.status} /></td>
+                  <td data-label="revisions" className="num">{cr.revisions}</td>
+                  <td data-label="updated" className="nowrap muted">{isoDateTime(cr.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

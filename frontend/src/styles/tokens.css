@@ -1,0 +1,133 @@
+/* =====================================================================
+   stealthdebug — design tokens
+   One palette, two typefaces with fixed roles, one surface style (panel),
+   one radius, one terminal motif (dim prompt line above page titles and
+   "##" before section headings), one accent meaning "you can act on this".
+
+   Two themes share every token name. Components only ever use tokens:
+   never a literal colour, so a theme is a single block below.
+     dark  (default): neon green on near-black, the site's original look
+     light: the same neon as a fill, a deeper green for text, cool paper
+   <html data-theme="dark|light"> is set before first paint by
+   /theme-init.js (stored choice, or the system preference).
+   ===================================================================== */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg:          #0d1318;
+  --surface:     #141b22;
+  --surface-2:   #19222b;
+  --nav-bg:      rgba(13, 19, 24, 0.86);
+  --hover-bg:    rgba(255, 255, 255, 0.025);
+  --hero-glow:   rgba(71, 235, 180, 0.05);
+  --shadow:      0 10px 30px rgba(0, 0, 0, 0.45);
+
+  /* text */
+  --text:        #ebf4ff;
+  --body:        #c9d6e4;
+  --meta:        #7d93ab;
+  --muted:       #57718e;
+  --placeholder: #4f6378;
+
+  /* lines */
+  --line:        rgba(74, 95, 120, 0.38);
+  --line-hi:     #4a5f78;
+
+  /* accent: --accent for text, links and outlines; --accent-fill behind
+     text (primary buttons, toggles), with --on-accent on top of it */
+  --accent:        #47ebb4;
+  --accent-fill:   #47ebb4;
+  --accent-hover:  #6ff2c6;
+  --accent-2:      #0aa370;
+  --on-accent:     #06231a;
+  --accent-bg:     rgba(71, 235, 180, 0.08);
+  --accent-line:   rgba(71, 235, 180, 0.35);
+  --accent-ring:   rgba(71, 235, 180, 0.12);
+  --selection:     rgba(71, 235, 180, 0.25);
+
+  /* status */
+  --danger:      #da2c38;
+  --danger-fg:   #ff8a92;
+  --danger-bg:   rgba(218, 44, 56, 0.08);
+  --danger-line: rgba(218, 44, 56, 0.5);
+  --warn-fg:     #e8b44c;
+  --warn-bg:     rgba(232, 180, 76, 0.08);
+  --warn-line:   rgba(232, 180, 76, 0.45);
+
+  /* diffs */
+  --diff-del:    rgba(218, 44, 56, 0.16);
+  --diff-add:    rgba(71, 235, 180, 0.13);
+  --diff-pad:    rgba(255, 255, 255, 0.02);
+
+  /* code (prism + the editor) */
+  --code-punct:   #8ea3ba;
+  --code-keyword: #c3a6ff;
+  --code-string:  #b6e3a0;
+  --code-number:  #f0a26b;
+  --code-fn:      #7cc7ff;
+  --code-type:    #ffcb6b;
+  --code-var:     #ffd479;
+  --code-mono:    #f0c674;
+
+  /* type, shape, layout */
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 2px;
+  --wrap: 1120px;
+  --nav-h: 60px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:          #f4f6f8;
+  --surface:     #ffffff;
+  --surface-2:   #eaeef2;
+  --nav-bg:      rgba(244, 246, 248, 0.88);
+  --hover-bg:    rgba(13, 19, 24, 0.03);
+  --hero-glow:   rgba(18, 196, 139, 0.07);
+  --shadow:      0 10px 30px rgba(13, 19, 24, 0.12);
+
+  --text:        #0d1318;
+  --body:        #2b3946;
+  --meta:        #5b6c7e;
+  --muted:       #7d8d9d;
+  --placeholder: #8c9aa8;
+
+  --line:        rgba(13, 19, 24, 0.12);
+  --line-hi:     #aeb9c4;
+
+  --accent:        #067a54;
+  --accent-fill:   #2ee0a4;
+  --accent-hover:  #5ae8b8;
+  --accent-2:      #0aa370;
+  --on-accent:     #04261a;
+  --accent-bg:     rgba(10, 163, 112, 0.08);
+  --accent-line:   rgba(6, 122, 84, 0.35);
+  --accent-ring:   rgba(10, 163, 112, 0.18);
+  --selection:     rgba(46, 224, 164, 0.35);
+
+  --danger:      #c4202c;
+  --danger-fg:   #b01d28;
+  --danger-bg:   rgba(196, 32, 44, 0.06);
+  --danger-line: rgba(196, 32, 44, 0.45);
+  --warn-fg:     #8a5800;
+  --warn-bg:     rgba(214, 152, 32, 0.1);
+  --warn-line:   rgba(176, 120, 10, 0.45);
+
+  --diff-del:    rgba(196, 32, 44, 0.1);
+  --diff-add:    rgba(10, 163, 112, 0.13);
+  --diff-pad:    rgba(13, 19, 24, 0.03);
+
+  --code-punct:   #57606a;
+  --code-keyword: #7c3aed;
+  --code-string:  #2f7d32;
+  --code-number:  #b45309;
+  --code-fn:      #0b62c4;
+  --code-type:    #9a6700;
+  --code-var:     #a3550a;
+  --code-mono:    #8a5800;
+}

@@ -8,6 +8,7 @@ import BlogCommentList from './BlogCommentList';
 import NotFound from '../error/NotFound';
 import { isoDate } from '../../utils/format';
 import { useI18n } from '../../i18n';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 interface Heading { id: string; text: string; level: number }
 
@@ -97,10 +98,7 @@ function BlogPost() {
     PostAPI.getPostById(id, lang).then(setPost).catch(() => setPost(null));
   }, [id, lang]);
 
-  useEffect(() => {
-    if (post) document.title = `${post.title} · stealthdebug`;
-    return () => { document.title = 'stealthdebug'; };
-  }, [post]);
+  useDocumentTitle(post?.title);
 
   // Markdown copy of the post for AI tools (none for drafts or hidden posts)
   useEffect(() => {
@@ -148,7 +146,7 @@ function BlogPost() {
   };
 
   if (post === undefined) {
-    return <div className="wrap"><p className="empty loading" style={{ paddingTop: 64 }}>{t('post.loading')}</p></div>;
+    return <div className="wrap"><p className="empty loading page-msg">{t('post.loading')}</p></div>;
   }
   if (post === null || (!post.published && !isAdmin)) return <NotFound />;
 
@@ -203,7 +201,7 @@ function BlogPost() {
             ? <span className="series">{t('post.series', { name: post.series.name, part: post.series.part, total: post.series.total })}</span>
             : <span className="series">{t('post.seriesLabel')}: {post.series.name}</span>)}
           {imageCount > 0 && <span>{imageCount} {imageCount === 1 ? t('post.image') : t('post.images')}</span>}
-          {!post.published && <span className="tag" style={{ color: 'var(--danger-fg)' }}>{t('post.unpublished')}</span>}
+          {!post.published && <span className="tag danger">{t('post.unpublished')}</span>}
           {post.tags.length > 0 && (
             <span className="tags">
               {post.tags.map((t) => <Link key={t} className="tag" to={`/blog?tag=${encodeURIComponent(t)}`}>#{t}</Link>)}
@@ -225,8 +223,8 @@ function BlogPost() {
             {others.map((l) => <button key={l.lang} className="link" lang={l.lang} onClick={() => setLang(l.lang)}>{t(`lang.${l.lang}`)}</button>)}
           </p>
         )}
-        {!post.published && <p className="alert draft-notice" style={{ marginTop: 18 }}>{t('post.draftNotice')}</p>}
-        {error && <p className="alert error" style={{ marginTop: 18 }}>{error}</p>}
+        {!post.published && <p className="alert draft-notice mt">{t('post.draftNotice')}</p>}
+        {error && <p className="alert error mt">{error}</p>}
       </header>
 
       <div className="post-grid">

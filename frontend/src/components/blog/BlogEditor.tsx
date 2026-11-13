@@ -5,8 +5,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import { syntaxHighlighting } from '@codemirror/language';
 
 import PostAPI from '../../api/posts.api';
 import PagesAPI, { type PageSlug } from '../../api/pages.api';
@@ -21,55 +20,9 @@ import {
 import MarkdownRenderer from './MarkdownRenderer';
 import MediaLibrary from './MediaLibrary';
 import type { Media, PostImages } from '../../types/media';
-
-// ---------------------------------------------------------------------------
-// Editor look: matches the site palette (CSS variables in globals.css)
-// ---------------------------------------------------------------------------
-const editorTheme = EditorView.theme(
-  {
-    '&': {
-      backgroundColor: 'var(--bg)',
-      color: 'var(--text)',
-      border: '1px solid var(--line)', borderRadius: 'var(--radius)',
-      fontSize: '0.95rem',
-      height: '100%',
-    },
-    '&.cm-focused': { outline: 'none', borderColor: 'var(--accent)' },
-    '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
-    '.cm-content': { caretColor: 'var(--accent)', padding: '0.75rem 0' },
-    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-      backgroundColor: 'rgba(71, 235, 180, 0.22) !important',
-    },
-    '.cm-gutters': {
-      backgroundColor: 'var(--surface)',
-      color: 'var(--line-hi)',
-      border: 'none',
-    },
-    '.cm-activeLine': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--meta)' },
-  },
-  { dark: true }
-);
-
-const markdownHighlight = HighlightStyle.define([
-  { tag: t.heading, color: 'var(--accent)', fontWeight: 'bold' },
-  { tag: t.strong, fontWeight: 'bold' },
-  { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: [t.link, t.url], color: 'var(--accent)' },
-  { tag: t.monospace, color: '#f0c674' },
-  { tag: t.quote, color: 'var(--meta)', fontStyle: 'italic' },
-  { tag: [t.processingInstruction, t.contentSeparator, t.meta], color: 'var(--line-hi)' },
-  { tag: t.list, color: 'var(--accent)' },
-  // code inside fenced blocks (language-data)
-  { tag: t.keyword, color: '#c792ea' },
-  { tag: [t.string, t.special(t.string)], color: '#c3e88d' },
-  { tag: [t.number, t.bool, t.null], color: '#f78c6c' },
-  { tag: t.comment, color: 'var(--meta)', fontStyle: 'italic' },
-  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#82aaff' },
-  { tag: [t.typeName, t.className], color: '#ffcb6b' },
-]);
+import { editorTheme, markdownHighlight } from './editor/theme';
+import { readDraft, writeDraft, clearDraft, same, EMPTY, type Snapshot, type Draft } from './editor/drafts';
+import TagInput from './editor/TagInput';
 
 // ---------------------------------------------------------------------------
 // Markdown editing commands
@@ -153,78 +106,6 @@ function imagesFromLibrary(items: Media[]): PostImages {
     };
   }
   return out;
-}
-
-// ---------------------------------------------------------------------------
-// Drafts (per post, in this browser only)
-// ---------------------------------------------------------------------------
-interface Snapshot { title: string; summary: string; content: string; tags: string[]; series: string; published: boolean; mcpVisible: boolean }
-interface Draft extends Snapshot { savedAt: number }
-
-const draftKey = (id?: string) => `stealthdebug:draft:${id ?? 'new'}`;
-
-function readDraft(id?: string): Draft | null {
-  try {
-    const raw = localStorage.getItem(draftKey(id));
-    return raw ? (JSON.parse(raw) as Draft) : null;
-  } catch {
-    return null;
-  }
-}
-function writeDraft(id: string | undefined, s: Snapshot) {
-  try {
-    localStorage.setItem(draftKey(id), JSON.stringify({ ...s, savedAt: Date.now() }));
-  } catch { /* storage full or disabled: drafts are a convenience */ }
-}
-function clearDraft(id?: string) {
-  try { localStorage.removeItem(draftKey(id)); } catch { /* ignore */ }
-}
-const same = (a: Snapshot, b: Snapshot) =>
-  a.title === b.title && a.summary === b.summary && a.content === b.content &&
-  (a.tags ?? []).join('\n') === (b.tags ?? []).join('\n') && (a.series ?? '') === (b.series ?? '') &&
-  (a.published ?? b.published) === b.published &&
-  (a.mcpVisible ?? b.mcpVisible) === b.mcpVisible;
-
-// New posts start as drafts: visible only to the admin until published
-const EMPTY: Snapshot = { title: '', summary: '', content: '', tags: [], series: '', published: false, mcpVisible: true };
-
-// Same rules as the backend (normalizeTags): lowercase, no "#", spaces -> "-"
-function normalizeTag(raw: string): string {
-  return raw.trim().toLowerCase().replace(/^#+/, '').replace(/\s+/g, '-').replace(/[^a-z0-9+.-]/g, '').slice(0, 30);
-}
-
-function TagInput({ value, onChange, disabled }: { value: string[]; onChange: (t: string[]) => void; disabled?: boolean }) {
-  const [text, setText] = useState('');
-  const add = (raw: string) => {
-    const t = normalizeTag(raw);
-    if (t && !value.includes(t) && value.length < 8) onChange([...value, t]);
-    setText('');
-  };
-  return (
-    <div className="input tag-input" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus()}>
-      {value.map((t) => (
-        <span key={t} className="tag accent">
-          #{t}
-          <button type="button" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>×</button>
-        </span>
-      ))}
-      <input
-        id="post-tags"
-        value={text}
-        disabled={disabled || value.length >= 8}
-        placeholder={value.length ? '' : 'firmware, uart… (enter to add)'}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v.endsWith(',') && v.trim() !== ',') add(v.slice(0, -1)); else setText(v);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) add(text); }
-          else if (e.key === 'Backspace' && !text && value.length) onChange(value.slice(0, -1));
-        }}
-        onBlur={() => text.trim() && add(text)}
-      />
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------

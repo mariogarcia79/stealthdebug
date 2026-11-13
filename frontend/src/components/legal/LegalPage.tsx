@@ -11,6 +11,7 @@ import legalEn from '../../content/legal/en/legal.md?raw';
 import legalEs from '../../content/legal/es/legal.md?raw';
 import securityEn from '../../content/legal/en/security.md?raw';
 import securityEs from '../../content/legal/es/security.md?raw';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 export type LegalDoc = 'privacy' | 'terms' | 'legal' | 'security';
 
@@ -39,10 +40,7 @@ function LegalPage({ doc, lang: forced }: { doc: LegalDoc; lang?: Lang }) {
   const d = DOCS[doc];
   const { title, body } = split(d.text[forced ?? lang]);
 
-  useEffect(() => {
-    document.title = `${title} · stealthdebug`;
-    return () => { document.title = 'stealthdebug'; };
-  }, [title]);
+  useDocumentTitle(title);
 
   // Jump to #section (e.g. /privacy#cookies-...) when rendered, and when a
   // link on the same page (the footer's "cookies") changes only the #section

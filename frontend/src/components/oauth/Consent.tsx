@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import OAuthAPI, { OAuthHttpError, type AuthorizationRequest } from '../../api/oauth.api';
 import { useI18n } from '../../i18n';
 import type { MessageKey } from '../../i18n/en';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 // /oauth/consent?request=<id>: an admin approves or denies an agent's
 // connection (OAuth consent). The backend's /api/oauth/authorize sends the
@@ -30,10 +31,7 @@ function Consent() {
   const requestId = params.get('request');
   const startError = params.get('error');
 
-  useEffect(() => {
-    document.title = `${t('consent.title')} · stealthdebug`;
-    return () => { document.title = 'stealthdebug'; };
-  }, [t]);
+  useDocumentTitle(t('consent.title'));
 
   useEffect(() => {
     if (startError || !requestId) {
