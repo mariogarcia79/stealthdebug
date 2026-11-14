@@ -76,3 +76,22 @@
   .post-editor-cm, .editor-side { height: 60vh; min-height: 320px; }
 }
 .mcp-visible { margin-top: 4px; }
+
+/* modal dialog (hexdump tool) */
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(5, 9, 12, 0.6); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
+.modal { width: min(980px, 100%); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; box-shadow: var(--shadow); }
+.modal > .panel-body { overflow-y: auto; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.hexdump-dialog-body { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+.hexdump-dialog .hexview { margin: 0; font-size: 12.5px; }
+.hd-source { display: flex; flex-direction: column; gap: 12px; }
+.hd-source textarea { font-size: 12.5px; white-space: pre; overflow-x: auto; }
+.hd-errors { list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.hd-errors::before { display: none; }
+.hd-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hd-add .input { width: 180px; }
+.hd-add .grow { flex: 1; min-width: 180px; }
+.hd-range { font: 400 12px var(--mono); color: var(--text); min-width: 170px; }
+.hd-clash { color: var(--danger-fg); font-size: 12px; }
+.hd-fields td { padding-block: 6px; }
+.hd-fields .input { width: 100%; }

@@ -9,6 +9,7 @@ import { createDefaultAdmin } from './config/defaultUsers';
 import MediaService, { uploadDirProblem } from './services/media.service';
 import app from "./app";
 import { startMetricsServer } from './config/metrics';
+import AgentImageService from './services/agentImages.service';
 
 connectDB().then(() => {
   createDefaultAdmin().catch((err) => console.error('Default admin:', err));
@@ -25,6 +26,13 @@ connectDB().then(() => {
     const s = await MediaService.syncLibrary();
     console.log(`Media sync: ${s.scanned} files, ${s.created} added, ${s.updated} updated, ${s.failed} failed`);
   })().catch((err) => console.error('Media sync failed:', err));
+
+  // Agents' unpublished images that nothing uses expire (daily check)
+  const purge = () => AgentImageService.purgeExpired()
+    .then((n) => { if (n) console.log(`Agent images: ${n} expired removed`); })
+    .catch((err) => console.error('Agent image purge failed:', err));
+  purge();
+  setInterval(purge, 24 * 3600_000).unref();
 
   // Prometheus (agents' tool calls, change requests): internal port only
   if (process.env.METRICS_PORT) startMetricsServer(Number(process.env.METRICS_PORT));

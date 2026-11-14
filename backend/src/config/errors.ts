@@ -33,6 +33,7 @@ export const ERRORS = {
   CHANGE_REQUEST_OUTDATED:  { message: 'The post changed after this revision: a new revision is needed', status: 409 },
   CHANGE_REQUEST_STALE_REVIEW: { message: 'A newer revision was submitted: review it first', status: 409 },
   TOO_MANY_CHANGE_REQUESTS: { message: 'Too many open change requests', status: 409 },
+  TOO_MANY_IMAGES:      { message: 'Too many unpublished images: use or let expire the ones you uploaded', status: 409 },
   TRANSLATION_EXISTS:   { message: 'A translation into this language already exists: propose an edit of it', status: 409 },
 } as const;
 

@@ -14,6 +14,8 @@ app.set("trust proxy", 1);
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP is enforced at the nginx layer
 app.use(compression());
+// Agents' image uploads carry base64 (checked again by the service)
+app.use("/api/agent/images", express.json({ limit: "9mb" }));
 app.use(express.json());
 app.use(cookieParser());
 // OAuth authorization server metadata (RFC 8414) lives at the site's root,

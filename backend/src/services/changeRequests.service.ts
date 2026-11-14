@@ -12,6 +12,7 @@ import { contentHash } from "../utils/contentHash";
 import { isObjectId } from "../utils/validation";
 import AgentPostService from "./agentPosts.service";
 import AuditService from "./audit.service";
+import AgentImageService, { proposalTexts } from "./agentImages.service";
 
 // Change requests: agents propose (create, revise, read their own), admins
 // review (accept, decline). On accept this service, not the agent, writes
@@ -178,6 +179,9 @@ class ChangeRequestService {
     if (!claimed) throw new AppError("CHANGE_REQUEST_NOT_OPEN");
 
     try {
+      // the agent's images the proposal uses become library images first, so
+      // the published post never points at a missing file
+      await AgentImageService.publishFor(agentId, proposalTexts(claimed));
       const result = await ChangeRequestService.apply(claimed, agentId, agent.name, admin.name, at, !!opts.publish, adminId);
       if (result.post) claimed.resultPost = result.post;
       claimed.resultTranslations = result.translations;

@@ -9,6 +9,7 @@ import { isObjectId } from "../utils/validation";
 import UserService from "./users.service";
 import ChangeRequestService from "./changeRequests.service";
 import AuditService from "./audit.service";
+import AgentImageService from "./agentImages.service";
 
 // Claude's connector callback (claude.ai custom connectors). Allowed by
 // default for new agents; an admin can give others.
@@ -122,6 +123,7 @@ class AgentService {
     await OAuthGrantModel.updateMany({ agent: agent._id, revokedAt: null }, { $set: { revokedAt: now } });
     await OAuthClientModel.updateMany({ agent: agent._id, revokedAt: null }, { $set: { revokedAt: now } });
     await ChangeRequestService.closeActive({ agent: agent._id as Types.ObjectId });
+    await AgentImageService.removeForAgent(agent._id as Types.ObjectId);
     agent.deletedAt = now;
     await agent.save();
     await AuditService.log({ event: "agent_deleted", admin: adminId, agent: agent._id as Types.ObjectId, detail: agent.name });

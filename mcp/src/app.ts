@@ -59,7 +59,8 @@ export function createApp(config: Config, api = new AgentApi(config.agentApiUrl,
     host: "0.0.0.0",
     allowedHosts: [config.resource.hostname],
     allowedOrigins: config.allowedOrigins.length ? config.allowedOrigins : [config.resource.hostname],
-    jsonLimit: "200kb",
+    // upload_image carries base64 (6 MB image at most); everything else is small
+    jsonLimit: "9mb",
   });
   app.disable("x-powered-by");
 

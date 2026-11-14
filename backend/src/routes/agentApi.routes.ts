@@ -16,6 +16,8 @@ router.get( "/posts/:id",                      auditCall("get_post", "post"),   
 router.get( "/guidelines",                     auditCall("read_guidelines"),        read,  asyncHandler(AgentApiController.getGuidelines));
 router.get( "/change-requests",                auditCall("list_my_change_requests"), write, asyncHandler(AgentApiController.listChangeRequests));
 router.get( "/change-requests/:id",            auditCall("get_change_request", "changeRequest"),     write, asyncHandler(AgentApiController.getChangeRequest));
+router.get( "/images",                         auditCall("list_my_images"),         write, asyncHandler(AgentApiController.listImages));
+router.post("/images",                         auditCall("upload_image"),           write, asyncHandler(AgentApiController.uploadImage));
 router.post("/change-requests",                auditCall("propose"),                write, asyncHandler(AgentApiController.createChangeRequest));
 router.post("/change-requests/:id/revisions",  auditCall("update_change_request", "changeRequest"),  write, asyncHandler(AgentApiController.reviseChangeRequest));
 

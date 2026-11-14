@@ -66,6 +66,7 @@ before(async () => {
   });
   fake.get("/api/agent/posts/:id", (_req, res) => { res.status(404).json({ error: "Post not found" }); });
   fake.get("/api/agent/guidelines", (_req, res) => { res.json({ version: 3, content: "# Style\nUse SI units." }); });
+  fake.post("/api/agent/images", (req, res) => { res.status(201).json({ filename: "x-1-abcdef.webp", url: "/api/uploads/x-1-abcdef.webp", markdown: `![${req.body.alt ?? ""}](/api/uploads/x-1-abcdef.webp)` }); });
   fake.post("/api/agent/change-requests", (req, res) => { res.status(201).json({ id: "dddddddddddddddddddddddd", status: "open", kind: req.body.kind }); });
   const bp = await freePort();
   backend = fake.listen(bp, "127.0.0.1");
@@ -130,8 +131,8 @@ for (const modern of [true, false]) {
     test("tools: the agent's operations only, nothing about comments", async () => {
       const c = await connect(accessToken(), modern);
       const names = (await c.listTools()).tools.map((t) => t.name).sort();
-      assert.deepEqual(names, ["get_change_request", "get_guidelines", "get_post", "list_my_change_requests", "list_posts",
-        "propose_edit", "propose_post", "propose_translation", "update_change_request"]);
+      assert.deepEqual(names, ["get_change_request", "get_guidelines", "get_post", "list_my_change_requests", "list_my_images", "list_posts",
+        "make_hexdump", "propose_edit", "propose_post", "propose_translation", "update_change_request", "upload_image"]);
       assert.ok(!names.some((n) => /comment/i.test(n)));
       assert.match(c.getInstructions() ?? "", /style:\/\/guidelines/);
       await c.close();
@@ -173,6 +174,26 @@ for (const modern of [true, false]) {
       assert.deepEqual((seen.at(-1)?.body as { translations: unknown }).translations, [{ lang: "en", ...tr }]);
       await c.callTool({ name: "propose_post", arguments: { title: "Hello", summary: "S", content: "Text", description: "d" } });
       assert.equal((seen.at(-1)?.body as { translations?: unknown }).translations, undefined);
+      await c.close();
+    });
+
+    test("upload_image forwards data or url; make_hexdump returns a valid block", async () => {
+      seen.length = 0;
+      const c = await connect(accessToken(), modern);
+      const up = await c.callTool({ name: "upload_image", arguments: { url: "https://example.com/board.png", alt: "Board" } });
+      assert.deepEqual(seen.at(-1)?.body, { url: "https://example.com/board.png", alt: "Board" });
+      assert.match(text(up), /!\[Board\]\(\/api\/uploads\/x-1-abcdef\.webp\)/);
+      const both = await c.callTool({ name: "upload_image", arguments: { url: "https://example.com/a.png", data: "aGk=" } });
+      assert.equal((both as { isError?: boolean }).isError, true);
+
+      const hx = await c.callTool({ name: "make_hexdump", arguments: {
+        hex: "27 05 19 56 6a 1c 4b 2e", title: "uImage header",
+        fields: [{ offset: 0, length: 4, name: "magic", note: "uImage magic" }, { offset: 4, length: 4, name: "hcrc" }],
+      } });
+      assert.match(text(hx), /```hexdump\n# uImage header\n00000000: 2705 1956 6a1c 4b2e +'\.\.Vj\.K\.\n@0x00\+4 magic: uImage magic\n@0x04\+4 hcrc\n```/);
+      const bad = await c.callTool({ name: "make_hexdump", arguments: { hex: "00 01", fields: [{ offset: 1, length: 4, name: "x" }] } });
+      assert.equal((bad as { isError?: boolean }).isError, true);
+      assert.match(text(bad), /outside the dump/);
       await c.close();
     });
 

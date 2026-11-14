@@ -24,6 +24,12 @@ const en = {
   'theme.dark': 'Dark',
   'theme.light': 'Light',
   'theme.system': 'System',
+  'hex.label': 'Hex dump: move with the arrow keys; n and p jump between fields',
+  'hex.hint': 'Point at a byte, or focus the dump and use the arrow keys (n / p: next / previous field).',
+  'hex.hintSelect': 'Drag over bytes, or Shift+arrows, to select the range of a new field.',
+  'hex.noField': 'no field here',
+  'hex.byte': 'byte',
+  'hex.bytes': 'bytes',
   'lang.label': 'Language',
   'lang.switchTo': 'Ver en español',
 

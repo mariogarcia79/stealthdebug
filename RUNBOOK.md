@@ -652,6 +652,33 @@ Post fields besides the Markdown:
 
 Markdown extras: `> [!NOTE]`, `> [!TIP]`, `> [!WARNING]` and `> [!CAUTION]` render as callouts; fenced code blocks get a language label and a copy button; `##`/`###` headings appear in the post's contents sidebar. Older posts have no tags or series until you edit them.
 
+### Hex dumps
+
+A fenced block with the language `hexdump` renders as an interactive viewer: readers move the cursor (mouse or arrow keys; `n`/`p` jump between fields) and the named fields highlight, with their note and value (hex, little/big endian integers, ASCII). In the editor, the **hex** toolbar button opens a tool: paste `xxd` or `hexdump -C` output (or plain hex), drag over bytes to select a range, name it, **add field**; **insert block** writes the block at the cursor. With the cursor inside an existing block, the tool edits that block. The syntax, if you prefer to type it:
+
+````
+```hexdump
+# uImage header
+00000000: 2705 1956 6a1c 4b2e 51f6 2b3c 0013 2a7c  '..Vj.K.Q.+<..*|
+@0x00+4 ih_magic: uImage magic number
+@0x08-0x0b ih_time: creation time
+```
+````
+
+Fields can't overlap; at most 8192 bytes and 64 fields per block. The parser is `frontend/src/utils/hexdump.ts` (the MCP server has a copy, `mcp/src/hexdump.ts`, and its tests fail if the two differ: copy the file after changing it).
+
+### Image metadata
+
+Every image stored (by the admin or by an agent) is re-encoded to WebP, which drops all metadata: EXIF (GPS position, camera, dates), XMP, IPTC and colour profiles; the EXIF rotation is applied to the pixels first. Files uploaded before that pipeline may still carry metadata. To check and clean them, as `deploy`:
+
+```bash
+podman volume export systemd-backend-uploads > ~/uploads-$(date +%Y%m%d).tar   # backup first
+podman exec backend node dist/scripts/stripMetadata.js            # dry run: lists files and what they carry
+podman exec backend node dist/scripts/stripMetadata.js --apply    # clean them in place
+```
+
+Files keep their name and format (JPEG re-encoded at quality 92, PNG/GIF losslessly), resized copies are regenerated and library records updated. Run the dry run again afterwards: it should find nothing. Never point `--backup-dir` inside the uploads volume: nginx serves it.
+
 ### About page
 
 `/about` ("about me" in the navbar) is a single markdown page for the CV. As admin, use its **edit** button (`/about/edit`): the same editor as posts, with images and preview, but only the content (no title, summary, tags, series or draft state; it is public as soon as it is saved). Until it has content it shows "Nothing here yet" and is left out of the sitemap. It is stored in the `pages` collection (`slug: "about"`); images it uses count as "in use" in the media library.
@@ -847,6 +874,7 @@ Only clients you register can connect; there is no dynamic client registration. 
 
 - **Review:** agents → change requests (Edit / New / Translation). The raw side-by-side diff is always shown; the rendered preview loads no external images. Accept (choose publish now or draft for new posts and translations), or decline with a comment, which the agent reads and answers with a new revision. If the post changed after the proposal, it's *outdated* and can't be accepted until the agent proposes again on the current version.
 - **What accepting does:** an edit writes the fields and adds the comment "Claude edited this post under the supervision of …" (localized). A new post is authored by the agent and gets the "wrote this post" banner. A translation is linked to the original, gets the "translated" banner, and appears when readers switch language.
+- **Complete posts:** agents can upload images (`upload_image`, base64 up to 6 MB or a public https URL up to 10 MB; converted to WebP without metadata) and build hex dumps (`make_hexdump`), and use both in any proposal. An agent's images are **not public** until you accept a proposal that uses them: the review lists each image as *new image from the agent*, *library* or *missing*, and the preview shows the new ones (served only to the admin). Accepting moves them into the media library under the same address. Images no open request uses are deleted after 30 days; at most 30 unpublished images per agent.
 - **Guidelines:** agents → guidelines. Every save is a new version; agents get the latest through `style://guidelines` and `get_guidelines`.
 - **Audit log:** agents → audit log. It has every tool call (agent, tool, target, outcome; never tokens or request bodies), every review, and OAuth events. Entries expire after **30 days** (TTL index).
 - **Revoke access now:** agents → *revoke all tokens*. The next MCP call fails: the backend checks the grant on every call. Claude has to go through the consent page again.

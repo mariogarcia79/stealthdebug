@@ -99,6 +99,28 @@ function frameHeight(meta: Metadata): number {
   return meta.pageHeight || meta.height || 0;
 }
 
+// Re-encodes an image as WebP: oriented (EXIF rotation applied), at most
+// MAX_ORIGINAL_WIDTH wide, and without any metadata. sharp drops EXIF (GPS,
+// camera, dates), XMP, IPTC and the ICC profile (pixels converted to sRGB)
+// unless asked to keep them, and this pipeline never asks: every stored
+// image, uploaded by the admin or by an agent, goes through here.
+export async function cleanWebp(buffer: Buffer): Promise<{ data: Buffer; width: number; height: number }> {
+  let meta: Metadata;
+  try {
+    meta = await sharp(buffer, SHARP_INPUT).metadata();
+  } catch {
+    throw new InvalidImageError("Invalid or too large image");
+  }
+  if (!meta.width || !frameHeight(meta) || !meta.format) throw new InvalidImageError("Invalid image");
+  if (meta.format === "svg") throw new InvalidImageError("SVG images are not accepted");
+  const { data, info } = await sharp(buffer, SHARP_INPUT)
+    .rotate()
+    .resize({ width: MAX_ORIGINAL_WIDTH, withoutEnlargement: true })
+    .webp({ quality: 82, effort: 4 })
+    .toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.pageHeight || info.height };
+}
+
 // Writes to a temp file and renames, so a crash never leaves a half-written
 // file under a name that is cached for a year.
 async function writeWebp(pipeline: Sharp, dest: string, quality: number): Promise<OutputInfo> {
@@ -122,7 +144,8 @@ async function ensureVariants(filename: string, width: number, height: number): 
     const file = variantFilename(filename, w);
     const dest = path.join(VARIANT_DIR, file);
     if (!(await exists(dest))) {
-      await writeWebp(sharp(originalPath(filename), SHARP_INPUT).resize({ width: w }), dest, 80);
+      // rotate(): apply the EXIF orientation of older originals (the copy has no EXIF)
+      await writeWebp(sharp(originalPath(filename), SHARP_INPUT).rotate().resize({ width: w }), dest, 80);
     }
     const { size } = await fs.stat(dest);
     variants.push({ width: w, height: Math.round((height * w) / width), filename: file, size });
@@ -186,44 +209,38 @@ class MediaService {
   // Stores an uploaded image as WebP (max MAX_ORIGINAL_WIDTH wide) plus its
   // resized copies, and records it in the library.
   static async upload(buffer: Buffer, originalName: string, userId?: string): Promise<MediaDTO> {
-    let meta: Metadata;
-    try {
-      meta = await sharp(buffer, SHARP_INPUT).metadata();
-    } catch {
-      throw new InvalidImageError("Invalid or too large image");
-    }
-    if (!meta.width || !frameHeight(meta) || !meta.format) {
-      throw new InvalidImageError("Invalid image");
-    }
+    const clean = await cleanWebp(buffer);
+    return MediaService.store(clean, originalName, newUploadFilename(originalName), { uploadedBy: userId });
+  }
 
+  // Saves an already clean WebP (cleanWebp) under filename, makes its
+  // resized copies and records it in the library. Used by upload and when
+  // an agent's image is published (services/agentImages.service.ts).
+  static async store(
+    clean: { data: Buffer; width: number; height: number }, originalName: string, filename: string,
+    opts: { uploadedBy?: string; alt?: string } = {}
+  ): Promise<MediaDTO> {
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    const filename = newUploadFilename(originalName);
     const dest = originalPath(filename);
-
     let variants: IMediaVariant[] = [];
     try {
-      const info = await writeWebp(
-        sharp(buffer, SHARP_INPUT).rotate().resize({ width: MAX_ORIGINAL_WIDTH, withoutEnlargement: true }),
-        dest,
-        82
-      );
-      const saved = await sharp(dest, SHARP_INPUT).metadata();
-      const width = saved.width || info.width;
-      const height = frameHeight(saved) || info.height;
-
-      variants = await ensureVariants(filename, width, height);
-
+      const tmp = `${dest}.tmp-${process.pid}`;
+      await fs.writeFile(tmp, clean.data, { flag: "wx" });
+      await fs.rename(tmp, dest);
+      variants = await ensureVariants(filename, clean.width, clean.height);
       const doc = await MediaModel.create({
         filename,
         originalName: originalName.slice(0, 200),
-        width,
-        height,
-        size: info.size,
+        alt: (opts.alt ?? "").slice(0, 300),
+        width: clean.width,
+        height: clean.height,
+        size: clean.data.length,
         variants,
-        uploadedBy: userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : undefined,
+        uploadedBy: opts.uploadedBy && Types.ObjectId.isValid(opts.uploadedBy) ? new Types.ObjectId(opts.uploadedBy) : undefined,
       });
       return toDTO(doc, []);
     } catch (err) {
+      await fs.rm(`${dest}.tmp-${process.pid}`, { force: true }).catch(() => undefined);
       await removeFiles(filename, variants).catch(() => undefined);
       throw err;
     }

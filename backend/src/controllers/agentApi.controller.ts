@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import AgentPostService from "../services/agentPosts.service";
 import ChangeRequestService from "../services/changeRequests.service";
 import GuidelinesService from "../services/guidelines.service";
+import AgentImageService from "../services/agentImages.service";
 import { IChangeRequestDocument, CHANGE_STATUSES, ChangeStatus } from "../models/ChangeRequest";
 import UserModel from "../models/User";
 import { AppError, ValidationError } from "../config/errors";
@@ -86,6 +87,21 @@ class AgentApiController {
     }
     const list = await ChangeRequestService.listOwn(agentId(req), { status: status as ChangeStatus | undefined });
     return res.json(await Promise.all(list.map(view)));
+  }
+
+  // { data (base64) | url, filename?, alt? }: an image for a proposal
+  static async uploadImage(req: Request, res: Response): Promise<Response> {
+    const b = req.body ?? {};
+    for (const k of ["data", "url", "filename", "alt"]) {
+      if (b[k] !== undefined && typeof b[k] !== "string") throw new ValidationError(`${k} must be a string`);
+    }
+    const img = await AgentImageService.upload(agentId(req), { data: b.data, url: b.url, filename: b.filename, alt: b.alt });
+    res.locals.auditDetail = img.filename;
+    return res.status(201).json(img);
+  }
+
+  static async listImages(req: Request, res: Response): Promise<Response> {
+    return res.json(await AgentImageService.listOwn(agentId(req)));
   }
 
   static async getChangeRequest(req: Request, res: Response): Promise<Response> {

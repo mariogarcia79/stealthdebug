@@ -1,3 +1,4 @@
+import type { PostImages } from '../types/media';
 import { API_BASE_URL } from '../constants/constants';
 
 // Admin API for agents: change requests, agents, guidelines, audit log.
@@ -8,6 +9,9 @@ export type ChangeStatus = 'open' | 'outdated' | 'declined' | 'accepted' | 'clos
 
 export interface ProposedFields { title?: string; summary?: string; content?: string; tags?: string[]; series?: string }
 export interface Review { by: string | null; byName: string | null; at: string | null; decision: 'accepted' | 'declined' | null; comment: string }
+// Images a proposal uses: library ones, and the agent's unpublished uploads
+export interface PendingImage { filename: string; url: string; previewUrl: string; alt: string; width: number; height: number; size: number }
+export interface ProposalImages { library: PostImages; pending: PendingImage[] }
 export interface ProposedTranslation { lang: string; title: string; summary: string; content: string }
 export interface Revision { fields: ProposedFields; translations?: ProposedTranslation[]; description: string; baseHash: string | null; createdAt: string; review: Review | null }
 
@@ -85,7 +89,7 @@ const q = (params: Record<string, string | undefined>) => {
 const AdminAPI = {
   changeRequests: (f: { kind?: ChangeKind; status?: ChangeStatus | ''; agent?: string }) =>
     call<ChangeRequestSummary[]>('GET', `/change-requests${q({ kind: f.kind, status: f.status || undefined, agent: f.agent })}`),
-  changeRequest: (id: string) => call<{ changeRequest: ChangeRequest; target: TargetPost | null }>('GET', `/change-requests/${id}`),
+  changeRequest: (id: string) => call<{ changeRequest: ChangeRequest; target: TargetPost | null; images?: ProposalImages }>('GET', `/change-requests/${id}`),
   accept: (id: string, revision: number, publish?: boolean) => call<ChangeRequest>('POST', `/change-requests/${id}/accept`, { revision, publish }),
   decline: (id: string, comment: string) => call<ChangeRequest>('POST', `/change-requests/${id}/decline`, { comment }),
   agents: () => call<Agent[]>('GET', '/agents'),

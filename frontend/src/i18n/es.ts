@@ -24,6 +24,12 @@ const es: Record<MessageKey, string> = {
   'theme.dark': 'Oscuro',
   'theme.light': 'Claro',
   'theme.system': 'Sistema',
+  'hex.label': 'Volcado hexadecimal: muévete con las flechas; n y p saltan entre campos',
+  'hex.hint': 'Señala un byte, o selecciona el volcado y usa las flechas (n / p: campo siguiente / anterior).',
+  'hex.hintSelect': 'Arrastra sobre los bytes, o Mayús+flechas, para elegir el rango de un campo nuevo.',
+  'hex.noField': 'ningún campo aquí',
+  'hex.byte': 'byte',
+  'hex.bytes': 'bytes',
   'lang.label': 'Idioma',
   'lang.switchTo': 'View in English',
 

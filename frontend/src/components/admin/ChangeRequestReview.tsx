@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import AdminAPI, { type ChangeRequest, type TargetPost, type ProposedFields } from '../../api/admin.api';
+import AdminAPI, { type ChangeRequest, type TargetPost, type ProposedFields, type ProposalImages } from '../../api/admin.api';
 import MarkdownRenderer from '../blog/MarkdownRenderer';
 import { linkTargets, isLocal } from '../../utils/lineDiff';
 import { AdminTabs, StatusBadge, when } from './AdminLayout';
@@ -21,6 +21,7 @@ export default function ChangeRequestReview() {
   const { id = '' } = useParams();
   const [cr, setCr] = useState<ChangeRequest | null>(null);
   const [target, setTarget] = useState<TargetPost | null>(null);
+  const [images, setImages] = useState<ProposalImages>({ library: {}, pending: [] });
   const [error, setError] = useState('');
   const [comment, setComment] = useState('');
   const [publish, setPublish] = useState(true);
@@ -28,7 +29,7 @@ export default function ChangeRequestReview() {
   const [preview, setPreview] = useState(false);
 
   const load = useCallback(() => {
-    AdminAPI.changeRequest(id).then((r) => { setCr(r.changeRequest); setTarget(r.target); }).catch((e) => setError(String(e.message)));
+    AdminAPI.changeRequest(id).then((r) => { setCr(r.changeRequest); setTarget(r.target); setImages(r.images ?? { library: {}, pending: [] }); }).catch((e) => setError(String(e.message)));
   }, [id]);
   useEffect(load, [load]);
   useDocumentTitle('Review');
@@ -48,6 +49,17 @@ export default function ChangeRequestReview() {
   // every text that would be published, the bundled translation included
   const links = useMemo(() => linkTargets([rev?.fields.content, rev?.fields.summary, ...(rev?.translations ?? []).flatMap((t) => [t.content, t.summary])]
     .filter(Boolean).join('\n')), [rev]);
+
+  // Uploaded images the proposal points to: in the library, uploaded by the
+  // agent with it (published on accept), or missing (would be broken)
+  const pendingMap = useMemo(() => Object.fromEntries(images.pending.map((p) => [p.filename, p.previewUrl])), [images]);
+  const imageState = (url: string) => {
+    const name = /^\/api\/uploads\/([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(url)?.[1];
+    if (!name) return null;
+    if (pendingMap[name]) return <Badge tone="ok">new image from the agent</Badge>;
+    if (images.library[name]) return <Badge>library</Badge>;
+    return <Badge tone="danger">missing</Badge>;
+  };
 
   const act = async (f: () => Promise<unknown>) => {
     setBusy(true); setError('');
@@ -117,7 +129,7 @@ export default function ChangeRequestReview() {
           <div className="panel-bar"><h2>Links and images</h2><span className="actions"><Badge tone={links.some((l) => !isLocal(l)) ? 'warn' : 'neutral'} plain>{links.length}</Badge></span></div>
           {links.length === 0 ? <p className="diff-unchanged">The proposal contains no links or images.</p> : (
             <ul className="link-list">{links.map((l) => (
-              <li key={l} className={isLocal(l) ? '' : 'external'}><code>{l}</code>{!isLocal(l) && <Badge tone="warn">external</Badge>}</li>
+              <li key={l} className={isLocal(l) ? '' : 'external'}><code>{l}</code>{!isLocal(l) ? <Badge tone="warn">external</Badge> : imageState(l)}</li>
             ))}</ul>
           )}
         </section>
@@ -130,7 +142,7 @@ export default function ChangeRequestReview() {
           {preview && (
             <div className="panel-body">
               <p className="alert warn small">Untrusted preview: external images are not loaded and links are not clickable.</p>
-              <MarkdownRenderer untrusted content={rev.fields.content ?? (cr.kind === 'edit' ? target?.content ?? '' : '')} />
+              <MarkdownRenderer untrusted images={images.library} pendingImages={pendingMap} content={rev.fields.content ?? (cr.kind === 'edit' ? target?.content ?? '' : '')} />
             </div>
           )}
         </section>

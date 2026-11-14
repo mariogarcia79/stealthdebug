@@ -11,6 +11,9 @@ import { MAX_CONTENT_LENGTH } from "../config/validation";
 import { contentHash } from "../utils/contentHash";
 import { validateName, isObjectId } from "../utils/validation";
 import { csrfTokenFor } from "../middleware/csrf.middleware";
+import AgentImageService, { proposalTexts } from "../services/agentImages.service";
+import MediaService from "../services/media.service";
+import { isSafeUploadName } from "../utils/media";
 
 // The admin side of agents (routes/admin.routes.ts): reviewing change
 // requests, managing agents, the guidelines and the audit log.
@@ -74,10 +77,27 @@ class AdminController {
     const cr = await ChangeRequestService.get(req.params.id);
     const target = cr.post ? await PostModel.findById(cr.post).select(POST_FIELDS).lean() : null;
     const translations = cr.post ? await PostModel.find({ translationOf: cr.post }).select("_id lang").lean() : [];
+    // Images the proposal uses: library ones (sizes for the preview) and the
+    // agent's unpublished uploads (served to the admin only, see pendingImage)
+    const texts = proposalTexts(cr);
+    const agentId = String((cr.agent as unknown as { _id?: unknown })._id ?? cr.agent);
+    const pending = await AgentImageService.forProposal(agentId, texts);
     return res.json({
       changeRequest: await view(cr),
       target: target ? { ...target, contentHash: contentHash(target), translations } : null,
+      images: {
+        library: await MediaService.imagesForContent(texts),
+        pending: pending.map((p) => ({ ...p, previewUrl: `/api/admin/pending-images/${p.filename}` })),
+      },
     });
+  }
+
+  // An agent's unpublished image, for the review screen
+  static async pendingImage(req: Request, res: Response): Promise<Response | void> {
+    const data = isSafeUploadName(req.params.filename) ? await AgentImageService.file(req.params.filename) : null;
+    if (!data) throw new AppError("NOT_FOUND");
+    res.set({ "Content-Type": "image/webp", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    return res.send(data);
   }
 
   // { revision, publish? }

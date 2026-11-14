@@ -12,6 +12,7 @@ router.use(authenticate, checkRole("admin"), requireCsrf);
 router.get(   "/csrf",                              AdminController.csrf);
 router.get(   "/change-requests",                   asyncHandler(AdminController.listChangeRequests));
 router.get(   "/change-requests/:id",               asyncHandler(AdminController.getChangeRequest));
+router.get(   "/pending-images/:filename",          asyncHandler(AdminController.pendingImage));
 router.post(  "/change-requests/:id/accept",        asyncHandler(AdminController.accept));
 router.post(  "/change-requests/:id/decline",       asyncHandler(AdminController.decline));
 router.get(   "/agents",                            asyncHandler(AdminController.listAgents));

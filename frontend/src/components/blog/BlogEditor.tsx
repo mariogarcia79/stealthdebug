@@ -23,6 +23,7 @@ import type { Media, PostImages } from '../../types/media';
 import { editorTheme, markdownHighlight } from './editor/theme';
 import { readDraft, writeDraft, clearDraft, same, EMPTY, type Snapshot, type Draft } from './editor/drafts';
 import TagInput from './editor/TagInput';
+import HexdumpDialog, { hexdumpBlockAt } from './editor/HexdumpDialog';
 
 // ---------------------------------------------------------------------------
 // Markdown editing commands
@@ -138,6 +139,8 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
   const [draftOffer, setDraftOffer] = useState<Draft | null>(null);
 
   const [tab, setTab] = useState<'preview' | 'media'>('preview');
+  // hexdump tool: the block being edited (from/to in the text), or a new one at the cursor
+  const [hexEdit, setHexEdit] = useState<{ from: number; to: number; body: string } | null>(null);
   const [media, setMedia] = useState<Media[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaError, setMediaError] = useState('');
@@ -448,6 +451,12 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
               <button type="button" onClick={run((v) => prefixLines(v, '> '))} title="Quote">&gt;</button>
               <button type="button" onClick={run((v) => prefixLines(v, '- '))} title="List">•</button>
               <button type="button" onClick={() => setTab('media')} title="Insert image from library">img</button>
+              <button type="button" title="Hex dump with fields (edits the block under the cursor)" onClick={() => {
+                const v = cm.current?.view;
+                if (!v) return;
+                const pos = v.state.selection.main.head;
+                setHexEdit(hexdumpBlockAt(v.state.doc.toString(), pos) ?? { from: pos, to: pos, body: '' });
+              }}>hex</button>
               <span className={`char-counter inline ${contentTooLong ? 'exceeded' : ''}`}>
                 {content.length} / {MAX_CONTENT_LENGTH}
               </span>
@@ -511,6 +520,21 @@ function BlogEditor({ page }: { page?: PageSlug } = {}) {
             </div>
           </section>
         </div>
+      {hexEdit && (
+        <HexdumpDialog
+          initial={hexEdit.body}
+          onClose={() => { setHexEdit(null); cm.current?.view?.focus(); }}
+          onSave={(body) => {
+            const v = cm.current?.view;
+            const block = '```hexdump\n' + body + '\n```';
+            if (v) {
+              if (hexEdit.to > hexEdit.from) v.dispatch({ changes: { from: hexEdit.from, to: hexEdit.to, insert: block } });
+              else insertBlock(v, block, hexEdit.from);
+            }
+            setHexEdit(null);
+          }}
+        />
+      )}
     </div>
   );
 }

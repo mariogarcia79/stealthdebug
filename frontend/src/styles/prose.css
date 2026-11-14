@@ -64,3 +64,48 @@
   .prose { font-size: 16.5px; }
   .prose h2 { font-size: 20px; }
 }
+
+/* ---------------------------------------------------------------------
+   Hex viewer (components/blog/HexViewer.tsx)
+   --------------------------------------------------------------------- */
+.hexview { margin: 1.6em 0; font-family: var(--mono); }
+.prose .hexview { font-size: 12.5px; }
+.hexview .panel-bar b { color: var(--text); font-weight: 500; }
+.hx-scroll { overflow-x: auto; }
+.hx-grid { padding: 10px 0; width: max-content; min-width: 100%; line-height: 1.75; cursor: default; user-select: none; outline: none; }
+.hx-grid:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-ring); }
+.hx-row { display: flex; gap: 18px; padding-inline: 14px; white-space: pre; }
+.hx-off { color: var(--muted); }
+.hx-hex, .hx-ascii { display: flex; }
+.hx-b { padding: 0 3px; border-radius: 0; }
+.hx-b.gap { margin-left: 8px; }
+.hx-a { padding: 0 0.5px; }
+.hx-ascii { color: var(--meta); }
+.hx-empty { visibility: hidden; }
+
+/* field colours: tinted background, stronger when active */
+.hexview { --h0: 71, 235, 180; --h1: 124, 199, 255; --h2: 195, 166, 255; --h3: 240, 162, 107; --h4: 255, 212, 121; --h5: 255, 138, 146; --h6: 182, 227, 160; --h7: 142, 163, 186; }
+:root[data-theme="light"] .hexview { --h0: 6, 140, 96; --h1: 11, 98, 196; --h2: 124, 58, 237; --h3: 180, 83, 9; --h4: 154, 103, 0; --h5: 196, 32, 44; --h6: 47, 125, 50; --h7: 87, 96, 106; }
+.c0 { --h: var(--h0); } .c1 { --h: var(--h1); } .c2 { --h: var(--h2); } .c3 { --h: var(--h3); }
+.c4 { --h: var(--h4); } .c5 { --h: var(--h5); } .c6 { --h: var(--h6); } .c7 { --h: var(--h7); }
+.hf { background: rgba(var(--h), 0.14); color: var(--text); }
+.hx-b.hf.fs { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.hx-b.hf.fe { border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.hf.on { background: rgba(var(--h), 0.42); color: var(--text); }
+.hx-grid .cur { outline: 1.5px solid var(--accent); outline-offset: -1px; position: relative; z-index: 1; }
+.hx-grid .sel { background: var(--selection); color: var(--text); }
+.hexview.selecting .hx-grid { cursor: crosshair; }
+
+.hx-info { border-top: 1px solid var(--line); padding: 10px 14px; min-height: 44px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; color: var(--body); }
+.hx-info b { color: var(--text); font-weight: 600; }
+.hx-field { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.hx-note { flex-basis: 100%; font-family: var(--sans); font-size: 13px; color: var(--body); }
+.hx-values { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; }
+.hx-values code { color: var(--text); }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: rgb(var(--h)); margin-right: 6px; vertical-align: 0; }
+.hx-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--line); margin: 0; }
+.prose .hx-legend li { margin: 0; padding: 0; }
+.prose .hx-legend li::before { content: none; }
+.hx-legend button { font: 400 11.5px var(--mono); color: var(--meta); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px 8px; }
+.hx-legend button:hover, .hx-legend button.on { color: var(--text); border-color: var(--line-hi); }
+.hexdump-invalid { white-space: pre-wrap; }

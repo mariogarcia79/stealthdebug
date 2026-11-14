@@ -9,6 +9,8 @@ import remarkGfm from "remark-gfm";
 import { useI18n } from "../../i18n";
 import type { PostImages } from "../../types/media";
 import { slugify } from "../../utils/format";
+import { parseHexdump } from "../../utils/hexdump";
+import HexViewer from "./HexViewer";
 
 interface MarkdownProps {
   content: string;
@@ -19,6 +21,9 @@ interface MarkdownProps {
   // this site's uploads load; other images show their address instead) and
   // links don't navigate: each shows its real target.
   untrusted?: boolean;
+  // Review of an agent's proposal: its unpublished images (file name ->
+  // the admin-only address they are served from until accepted)
+  pendingImages?: Record<string, string>;
 }
 
 // The article column is at most 720px wide; below 900px the image fills the screen.
@@ -36,6 +41,7 @@ function uploadFilename(src: string | undefined): string | null {
 // second (nested, invalid) link to the full-size file.
 const InsideLink = createContext(false);
 const Images = createContext<PostImages | undefined>(undefined);
+const Pending = createContext<Record<string, string> | undefined>(undefined);
 
 function Anchor(props: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
   const { node: _node, href, ...rest } = props;
@@ -57,7 +63,11 @@ function Image(props: ComponentPropsWithoutRef<"img"> & { node?: unknown }) {
     const { t } = useI18n();
     const name = uploadFilename(typeof src === "string" ? src : undefined);
     const info = name ? images?.[name] : undefined;
+    const pending = useContext(Pending);
 
+    if (name && pending?.[name]) {
+      return <img src={pending[name]} alt={alt ?? ""} title={title} loading="lazy" decoding="async" className="pending-image" />;
+    }
     if (!info || typeof src !== "string") {
       return <img src={src} alt={alt ?? ""} title={title} loading="lazy" decoding="async" />;
     }
@@ -147,9 +157,32 @@ function rehypeCallouts(labels: CalloutLabels) {
   };
 }
 
+// Plain text of a hast node (the source of a code block)
+function hastText(node: unknown): string {
+  const n = node as { type?: string; value?: string; children?: unknown[] } | undefined;
+  if (!n) return "";
+  if (n.type === "text") return n.value ?? "";
+  return (n.children ?? []).map(hastText).join("");
+}
+
+// ```hexdump blocks: the interactive viewer (utils/hexdump.ts has the syntax)
+function HexBlock({ source }: { source: string }) {
+  const dump = useMemo(() => parseHexdump(source), [source]);
+  if (!dump.bytes.length) return <pre className="hexdump-invalid">{source}</pre>;
+  return <HexViewer dump={dump} />;
+}
+
 // Code block: panel with the language and a copy button
 function Pre(props: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
-  const { node: _node, className, children, ...rest } = props;
+  const { node, className, children, ...rest } = props;
+  const code = (node as { children?: { properties?: { className?: unknown } }[] } | undefined)?.children?.[0];
+  const codeClass = String(code?.properties?.className ?? "");
+  if (/\blanguage-hexdump\b/.test(`${className ?? ""} ${codeClass}`)) return <HexBlock source={hastText(node).replace(/\n$/, "")} />;
+  return <CodePre className={className} {...rest}>{children}</CodePre>;
+}
+
+function CodePre(props: ComponentPropsWithoutRef<"pre">) {
+  const { className, children, ...rest } = props;
   const ref = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
   const { t } = useI18n();
@@ -194,7 +227,7 @@ function UntrustedImage(props: ComponentPropsWithoutRef<"img"> & { node?: unknow
 
 const UNTRUSTED: Components = { a: UntrustedAnchor, img: UntrustedImage, pre: Pre };
 
-export default function MarkdownRenderer({ content, images, untrusted = false }: MarkdownProps) {
+export default function MarkdownRenderer({ content, images, untrusted = false, pendingImages }: MarkdownProps) {
   const { t } = useI18n();
   const rehypePlugins = useMemo(() => {
     const labels: CalloutLabels = {
@@ -205,6 +238,7 @@ export default function MarkdownRenderer({ content, images, untrusted = false }:
   }, [t]);
   return (
     <Images.Provider value={images}>
+     <Pending.Provider value={pendingImages}>
       <div className="prose">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -215,6 +249,7 @@ export default function MarkdownRenderer({ content, images, untrusted = false }:
           {content}
         </ReactMarkdown>
       </div>
+     </Pending.Provider>
     </Images.Provider>
   );
 }
