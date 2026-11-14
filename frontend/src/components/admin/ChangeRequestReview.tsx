@@ -45,7 +45,9 @@ export default function ChangeRequestReview() {
     if (cr?.kind === 'translation' && (f === 'tags' || f === 'series')) return null;   // kept from the original
     return rev.fields[f] === undefined ? (cr?.kind === 'edit' ? null : '') : asText(rev.fields[f]);
   };
-  const links = useMemo(() => linkTargets([rev?.fields.content, rev?.fields.summary].filter(Boolean).join('\n')), [rev]);
+  // every text that would be published, the bundled translation included
+  const links = useMemo(() => linkTargets([rev?.fields.content, rev?.fields.summary, ...(rev?.translations ?? []).flatMap((t) => [t.content, t.summary])]
+    .filter(Boolean).join('\n')), [rev]);
 
   const act = async (f: () => Promise<unknown>) => {
     setBusy(true); setError('');
@@ -85,6 +87,8 @@ export default function ChangeRequestReview() {
           <span>updated {when(cr.updatedAt)}</span>
           {target && <Link to={`/blog/${target._id}`}>{cr.kind === 'translation' ? 'original' : 'post'}: {target.title}</Link>}
           {cr.resultPost && <Link to={`/blog/${cr.resultPost}`}>result →</Link>}
+          {cr.resultTranslations?.map((id) => <Link key={id} to={`/blog/${id}`}>translation →</Link>)}
+          {cr.kind === 'new' && !!rev.translations?.length && <span>+ {rev.translations.map((t) => t.lang).join(', ')} translation</span>}
         </div>
       </header>
 
@@ -100,6 +104,14 @@ export default function ChangeRequestReview() {
 
         <p className="agent-note">Diffs compare {leftLabel} (left, −) with the proposal (right, +).</p>
         {FIELDS.map((f) => <DiffView key={f} label={f} before={before(f)} after={after(f)} />)}
+
+        {/* new post: its translation, proposed together and accepted with it */}
+        {(rev.translations ?? []).map((tr) => (
+          <section key={tr.lang} className="bundled">
+            <h2 className="bundled-head">Translation → {tr.lang} <span className="agent-note">created with the post; same tags and series</span></h2>
+            {(['title', 'summary', 'content'] as const).map((f) => <DiffView key={f} label={`${f} (${tr.lang})`} before="" after={tr[f]} />)}
+          </section>
+        ))}
 
         <section className="panel">
           <div className="panel-bar"><h2>Links and images</h2><span className="actions"><Badge tone={links.some((l) => !isLocal(l)) ? 'warn' : 'neutral'} plain>{links.length}</Badge></span></div>
@@ -150,7 +162,8 @@ export default function ChangeRequestReview() {
             <div className="panel-body">
               <div className="side">
                 <h3>Accept</h3>
-                <p>{cr.kind === 'edit' ? 'Applies the proposed fields to the post.' : cr.kind === 'new' ? 'Creates the post, credited to the agent.' : `Adds the ${cr.lang} translation to the original post.`}</p>
+                <p>{cr.kind === 'edit' ? 'Applies the proposed fields to the post.' : cr.kind === 'new'
+                  ? `Creates the post${rev.translations?.length ? ` and its ${rev.translations.map((t) => t.lang).join(', ')} translation` : ''}, credited to the agent.` : `Adds the ${cr.lang} translation to the original post.`}</p>
                 {cr.kind !== 'edit' && (
                   <label className="check">
                     <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
@@ -159,7 +172,7 @@ export default function ChangeRequestReview() {
                 )}
                 <button className="btn primary" disabled={busy || cr.status !== 'open'}
                   onClick={() => act(() => AdminAPI.accept(cr._id, cr.revisions.length, cr.kind === 'edit' ? undefined : publish))}>
-                  accept{cr.kind === 'edit' ? ' and apply' : publish ? ' and publish' : ' as draft'}
+                  accept{cr.kind === 'new' && rev.translations?.length ? ' both' : ''}{cr.kind === 'edit' ? ' and apply' : publish ? ' and publish' : ' as draft'}
                 </button>
               </div>
               <div className="side">

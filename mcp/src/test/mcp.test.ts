@@ -163,6 +163,19 @@ for (const modern of [true, false]) {
       await c.close();
     });
 
+    test("propose_post bundles the translation into the other language", async () => {
+      seen.length = 0;
+      const c = await connect(accessToken(), modern);
+      const tr = { title: "Hola", summary: "Resumen", content: "Texto" };
+      await c.callTool({ name: "propose_post", arguments: { title: "Hello", summary: "S", content: "Text", translation: tr, description: "d" } });
+      assert.deepEqual((seen.at(-1)?.body as { translations: unknown }).translations, [{ lang: "es", ...tr }]);
+      await c.callTool({ name: "propose_post", arguments: { title: "Hola", summary: "S", content: "Texto", lang: "es", translation: tr, description: "d" } });
+      assert.deepEqual((seen.at(-1)?.body as { translations: unknown }).translations, [{ lang: "en", ...tr }]);
+      await c.callTool({ name: "propose_post", arguments: { title: "Hello", summary: "S", content: "Text", description: "d" } });
+      assert.equal((seen.at(-1)?.body as { translations?: unknown }).translations, undefined);
+      await c.close();
+    });
+
     test("guidelines resource", async () => {
       const c = await connect(accessToken(), modern);
       const r = await c.readResource({ uri: "style://guidelines" });

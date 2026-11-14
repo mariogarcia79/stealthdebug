@@ -1,6 +1,7 @@
 import { ValidationError } from "../config/errors";
 import { MAX_TITLE_LENGTH, MAX_SUMMARY_LENGTH, MAX_CONTENT_LENGTH, MAX_DESCRIPTION_LENGTH } from "../config/validation";
-import { CHANGE_KINDS, ChangeKind, ProposedFields } from "../models/ChangeRequest";
+import { CHANGE_KINDS, ChangeKind, ProposedFields, ProposedTranslation } from "../models/ChangeRequest";
+import { LANGS, isLang } from "../config/langs";
 import { validateInput } from "./validation";
 import { normalizeTags, normalizeSeries } from "./postMeta";
 
@@ -35,4 +36,24 @@ export function validateProposedFields(kind: ChangeKind, raw: unknown): Proposed
   if (b.series !== undefined) out.series = normalizeSeries(b.series);
   if (Object.keys(out).length === 0) throw new ValidationError("An edit must change at least one field");
   return out;
+}
+
+// Translations proposed together with a new post: one per language other
+// than the post's (with en/es, at most one). Same rules as a translation.
+export function validateTranslations(raw: unknown, postLang: string): ProposedTranslation[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) throw new ValidationError("translations must be a list");
+  const seen = new Set<string>();
+  return raw.map((t, i) => {
+    if (!t || typeof t !== "object" || Array.isArray(t)) throw new ValidationError(`translations[${i}] must be an object`);
+    const b = t as Record<string, unknown>;
+    const extra = Object.keys(b).filter((k) => !["lang", "title", "summary", "content"].includes(k));
+    if (extra.length) throw new ValidationError(`Unknown fields in translations[${i}]: ${extra.join(", ")}`);
+    if (!isLang(b.lang)) throw new ValidationError(`translations[${i}].lang must be one of ${LANGS.join(", ")}`);
+    if (b.lang === postLang) throw new ValidationError(`translations[${i}].lang must differ from the post's language (${postLang})`);
+    if (seen.has(b.lang)) throw new ValidationError(`Two translations into ${b.lang}`);
+    seen.add(b.lang);
+    const f = validateProposedFields("translation", { title: b.title, summary: b.summary, content: b.content });
+    return { lang: b.lang, title: f.title!, summary: f.summary!, content: f.content! };
+  });
 }

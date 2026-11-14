@@ -5,8 +5,8 @@ import GuidelinesService from "../services/guidelines.service";
 import { IChangeRequestDocument, CHANGE_STATUSES, ChangeStatus } from "../models/ChangeRequest";
 import UserModel from "../models/User";
 import { AppError, ValidationError } from "../config/errors";
-import { isLang, LANGS } from "../config/langs";
-import { validateKind, validateDescription, validateProposedFields } from "../utils/changeRequest";
+import { isLang, LANGS, DEFAULT_LANG } from "../config/langs";
+import { validateKind, validateDescription, validateProposedFields, validateTranslations } from "../utils/changeRequest";
 import { normalizeTags } from "../utils/postMeta";
 
 // The agent API (routes/agentApi.routes.ts): what the MCP server's tools
@@ -33,11 +33,13 @@ async function view(cr: IChangeRequestDocument) {
     postId: cr.post ? String(cr.post) : null,
     lang: cr.lang,
     resultPostId: cr.resultPost ? String(cr.resultPost) : null,
+    resultTranslationIds: (cr.resultTranslations ?? []).map(String),
     createdAt: cr.createdAt,
     updatedAt: cr.updatedAt,
     revisions: cr.revisions.map((r, i) => ({
       number: i + 1,
       fields: r.fields,
+      translations: r.translations ?? [],
       description: r.description,
       baseHash: r.baseHash,
       createdAt: r.createdAt,
@@ -90,29 +92,38 @@ class AgentApiController {
     return res.json(await view(await ChangeRequestService.getOwn(agentId(req), req.params.id)));
   }
 
-  // { kind, postId?, lang?, fields, description }
+  // { kind, postId?, lang?, fields, translations?, description }
+  // translations: only for kind "new", proposed together with the post
   static async createChangeRequest(req: Request, res: Response): Promise<Response> {
     const body = req.body ?? {};
     const kind = validateKind(body.kind);
     res.locals.auditDetail = kind;
     if (kind !== "new" && typeof body.postId !== "string") throw new ValidationError("postId is required");
+    if (kind !== "new" && body.translations !== undefined) throw new ValidationError("translations can only be proposed with a new post");
+    const lang = optionalLang(body.lang);
     const cr = await ChangeRequestService.create(agentId(req), {
       kind,
       postId: kind === "new" ? undefined : body.postId,
-      lang: optionalLang(body.lang),
+      lang,
       fields: validateProposedFields(kind, body.fields),
+      translations: kind === "new" ? validateTranslations(body.translations, lang ?? DEFAULT_LANG) : [],
       description: validateDescription(body.description),
     });
     res.locals.changeRequestId = String(cr._id);
     return res.status(201).json(await view(cr));
   }
 
-  // { fields, description }: a new revision
+  // { fields, translations?, description }: a new revision. For a new
+  // post, translations omitted = keep the previous revision's; [] = none
   static async reviseChangeRequest(req: Request, res: Response): Promise<Response> {
     const existing = await ChangeRequestService.getOwn(agentId(req), req.params.id);
     const body = req.body ?? {};
+    if (existing.kind !== "new" && (req.body ?? {}).translations !== undefined) throw new ValidationError("translations can only be proposed with a new post");
     const cr = await ChangeRequestService.revise(agentId(req), req.params.id, {
       fields: validateProposedFields(existing.kind, body.fields),
+      translations: existing.kind === "new" && body.translations !== undefined
+        ? validateTranslations(body.translations, existing.lang ?? DEFAULT_LANG)
+        : undefined,
       description: validateDescription(body.description),
     });
     return res.json(await view(cr));

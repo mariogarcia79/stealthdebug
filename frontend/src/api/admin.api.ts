@@ -8,7 +8,8 @@ export type ChangeStatus = 'open' | 'outdated' | 'declined' | 'accepted' | 'clos
 
 export interface ProposedFields { title?: string; summary?: string; content?: string; tags?: string[]; series?: string }
 export interface Review { by: string | null; byName: string | null; at: string | null; decision: 'accepted' | 'declined' | null; comment: string }
-export interface Revision { fields: ProposedFields; description: string; baseHash: string | null; createdAt: string; review: Review | null }
+export interface ProposedTranslation { lang: string; title: string; summary: string; content: string }
+export interface Revision { fields: ProposedFields; translations?: ProposedTranslation[]; description: string; baseHash: string | null; createdAt: string; review: Review | null }
 
 export interface ChangeRequestSummary {
   _id: string; kind: ChangeKind; status: ChangeStatus; agent: { _id: string; name: string }; lang: string | null;
@@ -18,7 +19,7 @@ export interface ChangeRequestSummary {
 
 export interface ChangeRequest {
   _id: string; kind: ChangeKind; status: ChangeStatus; agent: { _id: string; name: string };
-  post: string | null; lang: string | null; revisions: Revision[]; review: Review | null; resultPost: string | null;
+  post: string | null; lang: string | null; revisions: Revision[]; review: Review | null; resultPost: string | null; resultTranslations?: string[];
   createdAt: string; updatedAt: string;
 }
 

@@ -129,3 +129,8 @@
 /* fixed layout takes widths from the colgroup (a fold row may come first) */
 .diff-table col.ln { width: 3.6em; }
 .diff-table col.sign { width: 1.6em; }
+
+/* translation bundled with a new post */
+.bundled { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.bundled-head { font: 600 12.5px/1.3 var(--mono); color: var(--meta); text-transform: uppercase; letter-spacing: .08em; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.bundled-head .agent-note { text-transform: none; letter-spacing: 0; font-weight: 400; }

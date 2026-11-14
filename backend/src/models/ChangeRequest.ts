@@ -23,6 +23,15 @@ export interface ProposedFields {
   series?: string;
 }
 
+// A translation proposed together with a new post (kind "new"): created
+// with it, in the same accept. Tags and series come from the new post.
+export interface ProposedTranslation {
+  lang: string;
+  title: string;
+  summary: string;
+  content: string;
+}
+
 export interface IReview {
   by: Types.ObjectId | null;
   at: Date | null;
@@ -32,6 +41,7 @@ export interface IReview {
 
 export interface IRevision {
   fields: ProposedFields;
+  translations: ProposedTranslation[];  // new: translations bundled with the post
   description: string;     // the agent's explanation, like a PR description
   baseHash: string | null; // contentHash of the target when proposed (edit, translation)
   createdAt: Date;
@@ -47,6 +57,7 @@ export interface IChangeRequest {
   status: ChangeStatus;
   review: IReview;               // latest decision
   resultPost: Types.ObjectId | null;  // accepted new / translation: the post created
+  resultTranslations: Types.ObjectId[]; // accepted new: the bundled translations created
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +76,16 @@ const fieldsSchema = new Schema<ProposedFields>(
   { _id: false }
 );
 
+const translationSchema = new Schema<ProposedTranslation>(
+  {
+    lang:    { type: String, required: true },
+    title:   { type: String, required: true },
+    summary: { type: String, required: true },
+    content: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const reviewSchema = new Schema<IReview>(
   {
     by:       { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -78,6 +99,7 @@ const reviewSchema = new Schema<IReview>(
 const revisionSchema = new Schema<IRevision>(
   {
     fields:      { type: fieldsSchema, required: true },
+    translations: { type: [translationSchema], default: [] },
     description: { type: String, required: true },
     baseHash:    { type: String, default: null },
     createdAt:   { type: Date, default: () => new Date() },
@@ -96,6 +118,7 @@ const changeRequestSchema = new Schema<IChangeRequestDocument>(
     status: { type: String, enum: CHANGE_STATUSES, default: "open" },
     review: { type: reviewSchema, default: () => ({}) },
     resultPost: { type: Schema.Types.ObjectId, ref: "Post", default: null },
+    resultTranslations: { type: [{ type: Schema.Types.ObjectId, ref: "Post" }], default: [] },
   },
   { timestamps: true }
 );

@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import ChangeRequestModel, {
-  IChangeRequest, IChangeRequestDocument, ChangeKind, ChangeStatus, ProposedFields, IReview,
+  IChangeRequest, IChangeRequestDocument, ChangeKind, ChangeStatus, ProposedFields, ProposedTranslation, IReview,
 } from "../models/ChangeRequest";
 import PostModel from "../models/Post";
 import UserModel from "../models/User";
@@ -27,6 +27,7 @@ export interface NewChangeRequest {
   postId?: string;
   lang?: Lang;
   fields: ProposedFields;
+  translations?: ProposedTranslation[];   // new only (validated by the controller)
   description: string;
 }
 
@@ -76,14 +77,17 @@ class ChangeRequestService {
       agent: agentId,
       post,
       lang,
-      revisions: [{ fields: req.fields, description: req.description, baseHash, review: null }],
+      revisions: [{ fields: req.fields, translations: req.kind === "new" ? req.translations ?? [] : [], description: req.description, baseHash, review: null }],
       status: "open",
     });
   }
 
   // New revision of one of the agent's requests (after a decline, when
   // outdated, or to improve an open one). It's based on the current post.
-  static async revise(agentId: string, id: string, rev: { fields: ProposedFields; description: string }): Promise<CR> {
+  // translations (new): undefined keeps the previous revision's.
+  static async revise(
+    agentId: string, id: string, rev: { fields: ProposedFields; translations?: ProposedTranslation[]; description: string }
+  ): Promise<CR> {
     const cr = await ChangeRequestService.getOwn(agentId, id);
     if (!REVISABLE.includes(cr.status)) throw new AppError("CHANGE_REQUEST_NOT_OPEN");
 
@@ -100,7 +104,11 @@ class ChangeRequestService {
     const updated = await ChangeRequestModel.findOneAndUpdate(
       { _id: cr._id, agent: agentId, status: { $in: REVISABLE } },
       {
-        $push: { revisions: { fields: rev.fields, description: rev.description, baseHash, review: null } },
+        $push: { revisions: {
+          fields: rev.fields,
+          translations: cr.kind === "new" ? rev.translations ?? current(cr).translations ?? [] : [],
+          description: rev.description, baseHash, review: null,
+        } },
         $set: { status: "open" },
       },
       { new: true }
@@ -170,8 +178,9 @@ class ChangeRequestService {
     if (!claimed) throw new AppError("CHANGE_REQUEST_NOT_OPEN");
 
     try {
-      const resultPost = await ChangeRequestService.apply(claimed, agentId, agent.name, admin.name, at, !!opts.publish, adminId);
-      if (resultPost) claimed.resultPost = resultPost;
+      const result = await ChangeRequestService.apply(claimed, agentId, agent.name, admin.name, at, !!opts.publish, adminId);
+      if (result.post) claimed.resultPost = result.post;
+      claimed.resultTranslations = result.translations;
       await claimed.save();
     } catch (err) {
       // Nothing was written (apply checks before writing): reopen
@@ -235,10 +244,10 @@ class ChangeRequestService {
     return cr;
   }
 
-  // Performs the write. Returns the post created (new, translation).
+  // Performs the write. Returns the posts created (new, translation).
   private static async apply(
     cr: CR, agentId: string, agentName: string, adminName: string, at: Date, publish: boolean, adminId: string
-  ): Promise<Types.ObjectId | null> {
+  ): Promise<{ post: Types.ObjectId | null; translations: Types.ObjectId[] }> {
     const rev = current(cr);
     const f = rev.fields;
 
@@ -257,19 +266,41 @@ class ChangeRequestService {
         content: editedComment(target.lang, agentName, adminName, at),
         published: true,
       });
-      return null;
+      return { post: null, translations: [] };
     }
 
     if (cr.kind === "new") {
-      const post = await PostModel.create({
-        author: agentId,
-        title: f.title, summary: f.summary, content: f.content,
-        tags: f.tags ?? [], series: f.series ?? "",
-        lang: cr.lang ?? DEFAULT_LANG,
-        published: publish,
-        supervisor: adminId,
-      });
-      return post._id as Types.ObjectId;
+      // The post and its bundled translations, all or nothing: if a
+      // translation can't be created, what was created is removed again
+      // (so the request can reopen with nothing written).
+      const created: Types.ObjectId[] = [];
+      try {
+        const post = await PostModel.create({
+          author: agentId,
+          title: f.title, summary: f.summary, content: f.content,
+          tags: f.tags ?? [], series: f.series ?? "",
+          lang: cr.lang ?? DEFAULT_LANG,
+          published: publish,
+          supervisor: adminId,
+        });
+        created.push(post._id as Types.ObjectId);
+        for (const t of rev.translations ?? []) {
+          const tr = await PostModel.create({
+            author: agentId,
+            title: t.title, summary: t.summary, content: t.content,
+            tags: post.tags, series: post.series,
+            lang: t.lang,
+            translationOf: post._id,
+            published: publish,
+            supervisor: adminId,
+          });
+          created.push(tr._id as Types.ObjectId);
+        }
+        return { post: created[0], translations: created.slice(1) };
+      } catch (err) {
+        if (created.length) await PostModel.deleteMany({ _id: { $in: created } });
+        throw err;
+      }
     }
 
     // translation: tags and series stay those of the original
@@ -286,7 +317,7 @@ class ChangeRequestService {
         published: publish,
         supervisor: adminId,
       });
-      return post._id as Types.ObjectId;
+      return { post: post._id as Types.ObjectId, translations: [] };
     } catch (err) {
       if ((err as { code?: number }).code === 11000) throw new AppError("TRANSLATION_EXISTS");
       throw err;

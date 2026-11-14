@@ -208,3 +208,59 @@ async function setupAgentOf(crId: string) {
   const grant = await OAuthGrantModel.findOne({ agent: cr!.agent, revokedAt: null }).lean();
   return { agent: { _id: cr!.agent }, grant: grant! };
 }
+
+describe("new post with translations", () => {
+  const es = { lang: "es", title: "Hola (es)", summary: "Resumen", content: "Texto en español" };
+  const fields = { title: "Hello", summary: "Summary", content: "English text", tags: ["uart"], series: "zte" };
+
+  test("validation: only with new, another language, once, complete", async () => {
+    const { post, propose } = await setup();
+    const base = { kind: "new", fields, description: "d" };
+    expect((await propose({ ...base, translations: [{ ...es, lang: "en" }] })).status).toBe(400);           // same as the post
+    expect((await propose({ ...base, translations: [{ ...es, lang: "fr" }] })).status).toBe(400);           // unsupported
+    expect((await propose({ ...base, lang: "es", translations: [es] })).status).toBe(400);                  // es post, es translation
+    expect((await propose({ ...base, translations: [{ lang: "es", title: "t" }] })).status).toBe(400);      // incomplete
+    expect((await propose({ ...base, translations: [{ ...es, tags: ["x"] }] })).status).toBe(400);         // tags come from the post
+    expect((await propose({ ...base, translations: es })).status).toBe(400);                                // not a list
+    expect((await propose({ kind: "edit", postId: String(post._id), fields: { title: "x" }, translations: [es], description: "d" })).status).toBe(400);
+    const ok = await propose({ ...base, translations: [es] });
+    expect(ok.status).toBe(201);
+    expect(ok.body.revisions[0].translations).toEqual([es]);
+  });
+
+  test("accept creates the post and its translation together", async () => {
+    const { adminId, propose, get } = await setup();
+    const cr = await propose({ kind: "new", fields, translations: [es], description: "d" });
+    await ChangeRequestService.accept(adminId, cr.body.id, { revision: 1, publish: true });
+    const seen = (await get(cr.body.id)).body;
+    expect(seen.status).toBe("accepted");
+    expect(seen.resultTranslationIds).toHaveLength(1);
+    const tr = await PostModel.findById(seen.resultTranslationIds[0]).lean();
+    expect(tr).toMatchObject({ lang: "es", title: "Hola (es)", tags: ["uart"], series: "zte", published: true });
+    expect(String(tr?.translationOf)).toBe(seen.resultPostId);
+  });
+
+  test("revision: omitted keeps the translation, [] removes it", async () => {
+    const { propose, revise, get } = await setup();
+    const cr = await propose({ kind: "new", fields, translations: [es], description: "d" });
+    await revise(cr.body.id, { fields, description: "r2" });
+    expect((await get(cr.body.id)).body.revisions[1].translations).toEqual([es]);
+    await revise(cr.body.id, { fields, translations: [], description: "r3" });
+    expect((await get(cr.body.id)).body.revisions[2].translations).toEqual([]);
+  });
+
+  test("a failing translation leaves nothing behind and reopens the request", async () => {
+    const { adminId, propose } = await setup();
+    const cr = await propose({ kind: "new", fields, translations: [es], description: "d" });
+    const create = PostModel.create.bind(PostModel);
+    let calls = 0;
+    const spy = jest.spyOn(PostModel, "create").mockImplementation(((doc: unknown) => {
+      if (++calls === 2) throw new Error("boom");
+      return create(doc as never);
+    }) as never);
+    await expect(ChangeRequestService.accept(adminId, cr.body.id, { revision: 1 })).rejects.toThrow("boom");
+    spy.mockRestore();
+    expect(await PostModel.countDocuments({ title: { $in: ["Hello", "Hola (es)"] } })).toBe(0);
+    expect((await ChangeRequestModel.findById(cr.body.id))?.status).toBe("open");
+  });
+});
