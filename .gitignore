@@ -2,6 +2,7 @@ dist
 start-dev.sh
 
 # Audit
+RUNBOOK.md
 SECURITY_AUDIT.md
 
 # Logs
