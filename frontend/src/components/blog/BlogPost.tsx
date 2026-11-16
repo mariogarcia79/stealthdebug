@@ -8,7 +8,9 @@ import BlogCommentList from './BlogCommentList';
 import NotFound from '../error/NotFound';
 import { isoDate } from '../../utils/format';
 import { useI18n } from '../../i18n';
+import type { MessageKey } from '../../i18n/en';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import Icon from '../ui/Icon';
 
 interface Heading { id: string; text: string; level: number }
 
@@ -130,20 +132,23 @@ function BlogPost() {
     }
   };
 
-  // Admin: publish / unpublish right from the post
-  const togglePublished = async () => {
+  // Admin: publish / unpublish, or hide from agents (MCP), right from the
+  // post. Both apply to the whole post: the original and its translations.
+  const setVisibility = async (v: { published?: boolean; mcpVisible?: boolean }, failed: MessageKey) => {
     if (!post) return;
     setToggling(true);
     setError('');
     try {
-      await PostAPI.updatePost(post._id, { published: !post.published });
+      await PostAPI.setVisibility(post._id, v);
       setPost(await PostAPI.getPostById(post._id, lang));
     } catch {
-      setError(t('post.publishFailed'));
+      setError(t(failed));
     } finally {
       setToggling(false);
     }
   };
+  const togglePublished = () => setVisibility({ published: !post?.published }, 'post.publishFailed');
+  const toggleMcp = () => setVisibility({ mcpVisible: post?.mcpVisible === false }, 'post.mcpFailed');
 
   if (post === undefined) {
     return <div className="wrap"><p className="empty loading page-msg">{t('post.loading')}</p></div>;
@@ -155,6 +160,7 @@ function BlogPost() {
   const byAgent = post.author?.role === 'agent';
   const isTranslation = post.originalId !== undefined && post.originalId !== post._id;
   const supervisor = post.supervisor?.name ?? '';
+  const mcpHidden = post.mcpVisible === false;
   const others = (post.languages ?? []).filter((l) => l.lang !== post.lang && (l.published || isAdmin));
 
   return (
@@ -176,6 +182,16 @@ function BlogPost() {
                   <Link to={`/blog/edit/${post._id}`} className="btn sm">{t('post.edit')}</Link>
                   <button className={`btn sm ${post.published ? '' : 'primary'}`} onClick={togglePublished} disabled={toggling}>
                     {post.published ? t('post.unpublish') : t('post.publish')}
+                  </button>
+                  <button
+                    className={`icon-btn ${mcpHidden ? 'off' : ''}`}
+                    onClick={toggleMcp}
+                    disabled={toggling}
+                    aria-pressed={mcpHidden}
+                    title={mcpHidden ? t('post.mcpShow') : t('post.mcpHide')}
+                    aria-label={mcpHidden ? t('post.mcpShow') : t('post.mcpHide')}
+                  >
+                    <Icon name={mcpHidden ? 'eyeOff' : 'eye'} />
                   </button>
                   {/* Only drafts can be deleted (permanently); published posts are unpublished first */}
                   <button
@@ -202,6 +218,7 @@ function BlogPost() {
             : <span className="series">{t('post.seriesLabel')}: {post.series.name}</span>)}
           {imageCount > 0 && <span>{imageCount} {imageCount === 1 ? t('post.image') : t('post.images')}</span>}
           {!post.published && <span className="tag danger">{t('post.unpublished')}</span>}
+          {isAdmin && mcpHidden && <span className="tag">{t('post.mcpHidden')}</span>}
           {post.tags.length > 0 && (
             <span className="tags">
               {post.tags.map((t) => <Link key={t} className="tag" to={`/blog?tag=${encodeURIComponent(t)}`}>#{t}</Link>)}

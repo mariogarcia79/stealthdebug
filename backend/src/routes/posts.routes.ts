@@ -8,6 +8,7 @@ const router = Router();
 router.get(   "/",            optionalAuth, asyncHandler(PostController.getAllPosts));
 router.get(   "/:id",         optionalAuth, asyncHandler(PostController.getPostById));
 router.post(  "/",            authenticate, checkRole("admin"), asyncHandler(PostController.createPost));
+router.patch( "/:id/visibility", authenticate, checkRole("admin"), asyncHandler(PostController.setPostVisibility));
 router.patch( "/:id",         authenticate, checkRole("admin"), asyncHandler(PostController.patchPostById));
 router.delete("/:id",         authenticate, checkRole("admin"), asyncHandler(PostController.deletePostById));
 

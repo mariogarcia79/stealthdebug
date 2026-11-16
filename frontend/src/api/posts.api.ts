@@ -68,6 +68,25 @@ class PostAPI {
     }
   }
 
+  // Whole post (original + translations): published for readers, mcpVisible for agents
+  static async setVisibility(id: string, v: { published?: boolean; mcpVisible?: boolean }): Promise<{ published: boolean; mcpVisible: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/posts/${id}/visibility`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(v),
+    });
+    if (!response.ok) {
+      let errText = response.statusText;
+      try {
+        const errJson = await response.json();
+        errText = errJson?.message || errJson?.error || errText;
+      } catch {}
+      throw new Error(`Failed to change visibility: ${errText}`);
+    }
+    return response.json();
+  }
+
   static async updatePost(id: string, partial: Partial<PostInput>): Promise<unknown> {
     try {
       const response = await fetch(`${API_BASE_URL}/posts/${id}`, {

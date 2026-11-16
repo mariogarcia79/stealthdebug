@@ -112,4 +112,37 @@ describe("posts: writing (admin)", () => {
     expect(await CommentModel.countDocuments({ post: draft._id })).toBe(0);
     expect((await request(app).delete(`/api/posts/${draft._id}`).set("Cookie", c)).status).toBe(404);
   });
+
+  test("visibility applies to the whole post: original and translations", async () => {
+    const admin = await createUser(UserRole.ADMIN);
+    const user = await createUser();
+    const c = cookieFor(admin);
+    const original = await createPost(admin._id, { lang: "en" });
+    const es = await createPost(admin._id, { lang: "es", translationOf: original._id });
+
+    expect((await request(app).patch(`/api/posts/${es._id}/visibility`).set("Cookie", cookieFor(user)).send({ published: false })).status).toBe(403);
+
+    // unpublish from the translation hides both languages
+    const off = await request(app).patch(`/api/posts/${es._id}/visibility`).set("Cookie", c).send({ published: false });
+    expect(off.status).toBe(200);
+    expect(off.body).toEqual({ published: false, mcpVisible: true });
+    expect(await PostModel.countDocuments({ published: true })).toBe(0);
+    expect((await request(app).get(`/api/posts/${original._id}?lang=es`)).status).toBe(404);
+
+    const on = await request(app).patch(`/api/posts/${original._id}/visibility`).set("Cookie", c).send({ published: true });
+    expect(on.body.published).toBe(true);
+    expect(await PostModel.countDocuments({ published: true })).toBe(2);
+
+    // hidden from agents
+    const hidden = await request(app).patch(`/api/posts/${original._id}/visibility`).set("Cookie", c).send({ mcpVisible: false });
+    expect(hidden.body).toEqual({ published: true, mcpVisible: false });
+    expect(await PostModel.countDocuments({ mcpVisible: false })).toBe(2);
+    const detail = await request(app).get(`/api/posts/${original._id}?lang=es`).set("Cookie", c);
+    expect(detail.body.mcpVisible).toBe(false);
+    expect(detail.body.markdown).toBeNull();
+
+    expect((await request(app).patch(`/api/posts/${original._id}/visibility`).set("Cookie", c).send({})).status).toBe(400);
+    expect((await request(app).patch(`/api/posts/${original._id}/visibility`).set("Cookie", c).send({ mcpVisible: "no" })).status).toBe(400);
+    expect((await request(app).patch("/api/posts/0123456789abcdef01234567/visibility").set("Cookie", c).send({ published: true })).status).toBe(404);
+  });
 });

@@ -113,6 +113,24 @@ class PostService {
     return post;
   }
 
+  // Visibility of the whole post: the original and all its translations
+  // together. `published` hides it from readers in every language;
+  // `mcpVisible` hides it from agents (MCP). id may be either the original
+  // or one of its translations.
+  static async setPostVisibility(id: string, fields: Partial<Pick<IPost, "published" | "mcpVisible">>): Promise<{ published: boolean; mcpVisible: boolean }> {
+    const post = isObjectId(id) ? await PostModel.findById(id).select("translationOf").lean() : null;
+    if (!post) throw new AppError("POST_NOT_FOUND");
+    const originalId = post.translationOf ?? post._id;
+    const update: Partial<Pick<IPost, "published" | "mcpVisible">> = {};
+    if (fields.published !== undefined) update.published = fields.published;
+    if (fields.mcpVisible !== undefined) update.mcpVisible = fields.mcpVisible;
+    if (Object.keys(update).length > 0) {
+      await PostModel.updateMany({ $or: [{ _id: originalId }, { translationOf: originalId }] }, { $set: update });
+    }
+    const original = await PostModel.findById(originalId).select("published mcpVisible").lean();
+    return { published: !!original?.published, mcpVisible: original?.mcpVisible !== false };
+  }
+
   static async createPost(author: Types.ObjectId, fields: Omit<PostFields, "mcpVisible"> & { mcpVisible?: boolean }): Promise<IPostDocument> {
     return PostModel.create({ author, ...fields });
   }

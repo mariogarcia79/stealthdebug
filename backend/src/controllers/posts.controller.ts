@@ -144,6 +144,8 @@ class PostController {
       originalId,
       originalAuthor: post.translationOf ? person(original?.author) : null,
       originalLang: original?.lang ?? post.lang,
+      // agents go by the original: hidden there = hidden in every language
+      mcpVisible: original?.mcpVisible !== false,
       // Markdown copy for AI tools (not for drafts or posts hidden from agents)
       markdown: post.published && original?.published && original.mcpVisible !== false
         ? `/blog/${originalId}${post.translationOf ? `.${post.lang}` : ""}.md` : null,
@@ -178,6 +180,22 @@ class PostController {
 
     const post = await PostService.patchPostById(id, validatePostFields(req.body ?? {}, false));
     return res.json(post);
+  }
+
+  // PATCH /posts/:id/visibility { published?, mcpVisible? }: applies to the
+  // original and every translation at once
+  static async setPostVisibility(req: Request, res: Response): Promise<Response> {
+    const id = req.params.id;
+    if (!isObjectId(id)) throw new AppError("INVALID_POST_ID");
+    const body = req.body ?? {};
+    const fields: Partial<Pick<IPost, "published" | "mcpVisible">> = {};
+    if (body.published !== undefined) fields.published = validPublished(body.published);
+    if (body.mcpVisible !== undefined) {
+      if (typeof body.mcpVisible !== "boolean") throw new ValidationError("mcpVisible must be true or false");
+      fields.mcpVisible = body.mcpVisible;
+    }
+    if (Object.keys(fields).length === 0) throw new ValidationError("published or mcpVisible is required");
+    return res.json(await PostService.setPostVisibility(id, fields));
   }
 
   static async deletePostById(req: Request, res: Response): Promise<Response> {

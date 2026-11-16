@@ -27,7 +27,8 @@
 .post-head { padding-block: 56px 36px; max-width: 840px; }
 .crumbs { font-size: 12.5px; color: var(--meta); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .crumbs a { color: var(--accent); }
-.crumbs .admin-actions { margin-left: auto; display: flex; gap: 8px; }
+.crumbs .admin-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.crumbs .admin-actions .icon-btn.off { color: var(--accent); border-color: var(--accent); }
 .post-head h1 { font: 700 40px/1.18 var(--mono); letter-spacing: -0.02em; margin: 18px 0; overflow-wrap: anywhere; }
 .post-head .lead { font: 400 19px/1.65 var(--sans); color: var(--body); }
 .post-meta { display: flex; gap: 10px 22px; align-items: center; margin-top: 24px; font-size: 12.5px; color: var(--meta); flex-wrap: wrap; }
