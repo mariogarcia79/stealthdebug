@@ -1,6 +1,7 @@
 import { Schema, model, Document, Model } from 'mongoose';
 import { IUser } from '../types/user';
 import { UserRole } from "../types/userRole";
+import { fireOnWrites } from "../utils/siteEvents";
 
 export interface IUserDocument extends IUser, Document {}
 export interface IUserModel extends Model<IUserDocument> {}
@@ -33,6 +34,9 @@ const userSchema = new Schema<IUserDocument>(
     },
   }
 );
+
+// Readers may see the change: refresh the sitemap, feed, etc. (utils/siteEvents)
+fireOnWrites(userSchema);
 
 const User = model<IUserDocument, IUserModel>('User', userSchema);
 

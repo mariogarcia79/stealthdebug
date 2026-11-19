@@ -1,6 +1,7 @@
 import { Schema, model, Document, Model } from 'mongoose';
 import { IPost } from '../types/post';
 import { LANGS, DEFAULT_LANG } from '../config/langs';
+import { fireOnWrites } from "../utils/siteEvents";
 
 export interface IPostDocument extends IPost, Document {}
 export interface IPostModel extends Model<IPostDocument> {}
@@ -36,6 +37,9 @@ postSchema.index(
   { translationOf: 1, lang: 1 },
   { unique: true, partialFilterExpression: { translationOf: { $type: "objectId" } } }
 );
+
+// Readers may see the change: refresh the sitemap, feed, etc. (utils/siteEvents)
+fireOnWrites(postSchema);
 
 const Post = model<IPostDocument, IPostModel>('Post', postSchema);
 

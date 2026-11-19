@@ -1,4 +1,5 @@
 import { Schema, model, Document } from 'mongoose';
+import { fireOnWrites } from "../utils/siteEvents";
 
 // Standalone pages edited from the admin editor (currently only "about").
 // A page that was never saved has no document: it is shown empty.
@@ -17,6 +18,9 @@ const pageSchema = new Schema<IPageDocument>(
   },
   { timestamps: true }
 );
+
+// Readers may see the change: refresh the sitemap, feed, etc. (utils/siteEvents)
+fireOnWrites(pageSchema);
 
 const Page = model<IPageDocument>('Page', pageSchema);
 

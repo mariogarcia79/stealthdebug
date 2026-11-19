@@ -6,7 +6,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- sets data-theme before the first paint (external: the CSP blocks inline scripts) -->
     <script src="/theme-init.js"></script>
-    <title>Stealth Debug</title>
+    <link rel="alternate" type="application/rss+xml" title="stealthdebug" href="/feed.xml" />
+    <!-- On post pages the backend replaces this block with the post's own tags
+         (backend/src/controllers/postPage.controller.ts); keep the markers. -->
+    <!-- page-meta -->
+    <title>stealthdebug</title>
+    <meta name="description" content="Hands-on write-ups on reverse engineering embedded systems: opening the hardware, dumping and breaking down firmware, and bypassing software protections." />
+    <meta property="og:site_name" content="stealthdebug" />
+    <!-- /page-meta -->
   </head>
   <body>
     <div id="root"></div>

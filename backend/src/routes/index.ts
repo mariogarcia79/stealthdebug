@@ -11,6 +11,9 @@ import oauthRoutes from "./oauth.routes";
 import adminRoutes from "./admin.routes";
 import SitemapController from "../controllers/sitemap.controller";
 import LlmsController from "../controllers/llms.controller";
+import FeedController from "../controllers/feed.controller";
+import PostPageController from "../controllers/postPage.controller";
+import { env } from "../config/env";
 import { asyncHandler } from "../middleware/error.middleware";
 import { notFoundHandler } from "../middleware/error.middleware";
 
@@ -29,6 +32,11 @@ router.use( "/admin",   adminRoutes);
 router.get( "/sitemap.xml", SitemapController.getSitemap);
 router.get( "/llms.txt",    asyncHandler(LlmsController.llmsTxt));
 router.get( "/md/:file",    asyncHandler(LlmsController.postMarkdown));
+router.get( "/feed.xml",    asyncHandler(FeedController.getFeed));
+router.get( "/html/blog/:id", asyncHandler(PostPageController.getPostPage));
+// IndexNow key, verified by search engines (services/siteUpdates.service.ts)
+router.get( "/indexnow.txt", (_req, res, next) =>
+  env.indexNowKey ? res.type("text/plain").send(env.indexNowKey) : next());
 
 // Anything else under /api: JSON 404
 router.use(notFoundHandler);
