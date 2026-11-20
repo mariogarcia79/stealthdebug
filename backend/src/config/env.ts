@@ -23,6 +23,13 @@ export const env = {
   oauthSigningKey: process.env.OAUTH_SIGNING_KEY || "",
   // Canonical URI of the MCP server (RFC 8707 resource, the tokens' audience)
   mcpResource: process.env.MCP_RESOURCE || "https://mcp.stealthdebug.org/mcp",
+  // Where the backend reads the frontend's index.html, to serve post pages
+  // with their meta tags (same pod: the container's name)
+  frontendUrl: (process.env.FRONTEND_URL || "http://frontend").replace(/\/+$/, ""),
+  // IndexNow key (8-128 letters, digits, dashes): when set, search engines
+  // that support IndexNow (Bing, Yandex, Seznam...) are told which URLs
+  // changed as soon as a post is published, edited or unpublished. Unset: off.
+  indexNowKey: /^[A-Za-z0-9-]{8,128}$/.test(process.env.INDEXNOW_KEY || "") ? process.env.INDEXNOW_KEY! : "",
   // Limits for agents' change requests
   maxOpenChangeRequests: Number(process.env.MAX_OPEN_CHANGE_REQUESTS) || 10,
 } as const;

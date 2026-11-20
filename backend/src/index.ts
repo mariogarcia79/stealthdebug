@@ -10,6 +10,7 @@ import MediaService, { uploadDirProblem } from './services/media.service';
 import app from "./app";
 import { startMetricsServer } from './config/metrics';
 import AgentImageService from './services/agentImages.service';
+import SiteUpdates from './services/siteUpdates.service';
 
 connectDB().then(() => {
   createDefaultAdmin().catch((err) => console.error('Default admin:', err));
@@ -33,6 +34,9 @@ connectDB().then(() => {
     .catch((err) => console.error('Agent image purge failed:', err));
   purge();
   setInterval(purge, 24 * 3600_000).unref();
+
+  // Search engines hear about published/edited/unpublished posts (IndexNow)
+  SiteUpdates.start().catch((err) => console.error('IndexNow start failed:', err));
 
   // Prometheus (agents' tool calls, change requests): internal port only
   if (process.env.METRICS_PORT) startMetricsServer(Number(process.env.METRICS_PORT));

@@ -6,6 +6,8 @@ import { env } from "../config/env";
 import { AppError } from "../config/errors";
 import { LANGS } from "../config/langs";
 import { isObjectId } from "../utils/validation";
+import { sendCached, Built } from "../utils/publicCache";
+import { SITE_DESCRIPTION } from "../config/site";
 
 // Public, read-only access for AI tools without the MCP server:
 //   /llms.txt                  the llms.txt convention: what the blog is, every published post
@@ -51,98 +53,103 @@ async function names(ids: unknown[]): Promise<Map<string, { name: string; role: 
   return new Map(users.map((u) => [String(u._id), { name: u.name, role: String(u.role) }]));
 }
 
-function send(res: Response, type: string, body: string): Response {
-  return res.status(200).type(type).set({
-    "Cache-Control": "public, max-age=3600",
-    // the HTML page is the one to index; these are copies for tools
-    "X-Robots-Tag": "noindex",
-  }).send(body);
-}
+// the HTML page is the one to index; these are copies for tools
+const NOINDEX = { "X-Robots-Tag": "noindex" };
 
 class LlmsController {
   static async llmsTxt(_req: Request, res: Response): Promise<Response> {
-    const originals = await PostModel.find({ published: true, translationOf: null, mcpVisible: { $ne: false } }).sort({ createdAt: -1 }).lean();
-    const translations = await PostModel.find({ published: true, translationOf: { $in: originals.map((p) => p._id) } })
-      .select("translationOf lang").lean();
-    const byOriginal = new Map<string, string[]>();
-    for (const t of translations) byOriginal.set(String(t.translationOf), [...(byOriginal.get(String(t.translationOf)) ?? []), t.lang]);
-
-    const lines = [
-      "# stealthdebug",
-      "",
-      "> Hands-on write-ups on reverse engineering embedded systems: opening the hardware, dumping and breaking down firmware, and bypassing software protections.",
-      "",
-      `Blog by Mario García Carbonero. Posts are written in English or Spanish; some have translations. Every post below links to a Markdown version; the HTML pages are at ${SITE}/blog/<id>.`,
-      "",
-      "## Posts",
-      "",
-      ...originals.map((p) => {
-        const other = (byOriginal.get(String(p._id)) ?? []).map((l) => `[${TEXT.en.names[l]}](${mdUrl(p._id, l)})`);
-        return `- [${oneLine(p.title)}](${mdUrl(p._id)}): ${oneLine(p.summary)} (${p.lang}, ${day(p.createdAt as Date)})${other.length ? ` · ${other.join(", ")}` : ""}`;
-      }),
-      "",
-      "## Optional",
-      "",
-      `- [About](${SITE}/about)`,
-      `- [Sitemap](${SITE}/sitemap.xml)`,
-      "",
-    ];
-    return send(res, "text/plain; charset=utf-8", lines.join("\n"));
+    return sendCached(res, "llms.txt", buildLlmsTxt);
   }
 
   // :file = <id>.md | <id>.<lang>.md
   static async postMarkdown(req: Request, res: Response): Promise<Response> {
-    const m = /^([0-9a-f]{24})(?:\.([a-z]{2}))?\.md$/.exec(req.params.file);
-    if (!m || !isObjectId(m[1]) || (m[2] && !(LANGS as readonly string[]).includes(m[2]))) throw new AppError("POST_NOT_FOUND");
-    const original = await PostModel.findOne({ _id: new Types.ObjectId(m[1]), published: true, translationOf: null, mcpVisible: { $ne: false } });
-    if (!original) throw new AppError("POST_NOT_FOUND");
-    let post: IPostDocument = original;
-    if (m[2] && m[2] !== original.lang) {
-      const tr = await PostModel.findOne({ translationOf: original._id, lang: m[2], published: true });
-      if (!tr) throw new AppError("POST_NOT_FOUND");
-      post = tr;
-    }
-    const others = await PostModel.find({ translationOf: original._id, published: true }).select("lang").lean();
-    const who = await names([post.author, post.supervisor, original.author]);
-    const author = who.get(String(post.author));
-    const supervisor = who.get(String(post.supervisor))?.name ?? "";
-    const T = text(post.lang);
-    const isTranslation = post !== original;
-
-    const meta = [
-      `- ${T.by}: ${(isTranslation ? who.get(String(original.author))?.name : author?.name) ?? ""}`,
-      `- ${T.date}: ${day(original.createdAt as Date)}`,
-      `- ${T.updated}: ${day(post.updatedAt as Date)}`,
-      `- ${T.lang}: ${post.lang}`,
-      post.tags?.length ? `- ${T.tags}: ${post.tags.join(", ")}` : "",
-      post.series ? `- ${T.series}: ${oneLine(post.series)}` : "",
-      `- URL: ${SITE}/blog/${original._id}${isTranslation ? `?lang=${post.lang}` : ""}`,
-    ].filter(Boolean);
-    const alts = [
-      ...(isTranslation ? [`[${T.original} (${T.names[original.lang]})](${mdUrl(original._id)})`] : []),
-      ...others.filter((o) => o.lang !== post.lang).map((o) => `[${T.names[o.lang]}](${mdUrl(original._id, o.lang)})`),
-    ];
-    const banner = author?.role === "agent"
-      ? (isTranslation ? T.translated(author.name, supervisor, T.names[original.lang]) : T.wrote(author.name, supervisor))
-      : "";
-
-    const md = [
-      `# ${oneLine(post.title)}`,
-      "",
-      `> ${oneLine(post.summary)}`,
-      "",
-      ...meta,
-      ...(alts.length ? [`- ${T.translations}: ${alts.join(", ")}`] : []),
-      "",
-      ...(banner ? [`*${banner}*`, ""] : []),
-      "---",
-      "",
-      absolutize(post.content).trim(),
-      "",
-    ].join("\n");
-    res.set("Content-Language", post.lang);
-    return send(res, "text/markdown; charset=utf-8", md);
+    const file = req.params.file;
+    return sendCached(res, `md:${file}`, () => buildPostMarkdown(file));
   }
+}
+
+async function buildLlmsTxt(): Promise<Built> {
+  const originals = await PostModel.find({ published: true, translationOf: null, mcpVisible: { $ne: false } }).sort({ createdAt: -1 }).lean();
+  const translations = await PostModel.find({ published: true, translationOf: { $in: originals.map((p) => p._id) } })
+    .select("translationOf lang").lean();
+  const byOriginal = new Map<string, string[]>();
+  for (const t of translations) byOriginal.set(String(t.translationOf), [...(byOriginal.get(String(t.translationOf)) ?? []), t.lang]);
+
+  const lines = [
+    "# stealthdebug",
+    "",
+    `> ${SITE_DESCRIPTION.en}`,
+    "",
+    `Blog by Mario García Carbonero. Posts are written in English or Spanish; some have translations. Every post below links to a Markdown version; the HTML pages are at ${SITE}/blog/<id>.`,
+    "",
+    "## Posts",
+    "",
+    ...originals.map((p) => {
+      const other = (byOriginal.get(String(p._id)) ?? []).map((l) => `[${TEXT.en.names[l]}](${mdUrl(p._id, l)})`);
+      return `- [${oneLine(p.title)}](${mdUrl(p._id)}): ${oneLine(p.summary)} (${p.lang}, ${day(p.createdAt as Date)})${other.length ? ` · ${other.join(", ")}` : ""}`;
+    }),
+    "",
+    "## Optional",
+    "",
+    `- [About](${SITE}/about)`,
+    `- [Sitemap](${SITE}/sitemap.xml)`,
+    `- [RSS feed](${SITE}/feed.xml)`,
+    "",
+  ];
+  return { type: "text/plain; charset=utf-8", body: lines.join("\n"), headers: NOINDEX };
+}
+
+// Throws POST_NOT_FOUND (not cached) for anything that isn't a public copy
+async function buildPostMarkdown(file: string): Promise<Built> {
+  const m = /^([0-9a-f]{24})(?:\.([a-z]{2}))?\.md$/.exec(file);
+  if (!m || !isObjectId(m[1]) || (m[2] && !(LANGS as readonly string[]).includes(m[2]))) throw new AppError("POST_NOT_FOUND");
+  const original = await PostModel.findOne({ _id: new Types.ObjectId(m[1]), published: true, translationOf: null, mcpVisible: { $ne: false } });
+  if (!original) throw new AppError("POST_NOT_FOUND");
+  let post: IPostDocument = original;
+  if (m[2] && m[2] !== original.lang) {
+    const tr = await PostModel.findOne({ translationOf: original._id, lang: m[2], published: true });
+    if (!tr) throw new AppError("POST_NOT_FOUND");
+    post = tr;
+  }
+  const others = await PostModel.find({ translationOf: original._id, published: true }).select("lang").lean();
+  const who = await names([post.author, post.supervisor, original.author]);
+  const author = who.get(String(post.author));
+  const supervisor = who.get(String(post.supervisor))?.name ?? "";
+  const T = text(post.lang);
+  const isTranslation = post !== original;
+
+  const meta = [
+    `- ${T.by}: ${(isTranslation ? who.get(String(original.author))?.name : author?.name) ?? ""}`,
+    `- ${T.date}: ${day(original.createdAt as Date)}`,
+    `- ${T.updated}: ${day(post.updatedAt as Date)}`,
+    `- ${T.lang}: ${post.lang}`,
+    post.tags?.length ? `- ${T.tags}: ${post.tags.join(", ")}` : "",
+    post.series ? `- ${T.series}: ${oneLine(post.series)}` : "",
+    `- URL: ${SITE}/blog/${original._id}${isTranslation ? `?lang=${post.lang}` : ""}`,
+  ].filter(Boolean);
+  const alts = [
+    ...(isTranslation ? [`[${T.original} (${T.names[original.lang]})](${mdUrl(original._id)})`] : []),
+    ...others.filter((o) => o.lang !== post.lang).map((o) => `[${T.names[o.lang]}](${mdUrl(original._id, o.lang)})`),
+  ];
+  const banner = author?.role === "agent"
+    ? (isTranslation ? T.translated(author.name, supervisor, T.names[original.lang]) : T.wrote(author.name, supervisor))
+    : "";
+
+  const md = [
+    `# ${oneLine(post.title)}`,
+    "",
+    `> ${oneLine(post.summary)}`,
+    "",
+    ...meta,
+    ...(alts.length ? [`- ${T.translations}: ${alts.join(", ")}`] : []),
+    "",
+    ...(banner ? [`*${banner}*`, ""] : []),
+    "---",
+    "",
+    absolutize(post.content).trim(),
+    "",
+  ].join("\n");
+  return { type: "text/markdown; charset=utf-8", body: md, headers: { ...NOINDEX, "Content-Language": post.lang } };
 }
 
 export default LlmsController;
