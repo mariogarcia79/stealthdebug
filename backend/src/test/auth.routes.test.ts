@@ -46,6 +46,23 @@ describe("auth", () => {
     expect(weird.status).toBe(401);
   });
 
+  test("/auth/session: 200 with the user, or null without a valid session", async () => {
+    const user = await createUser();
+    const c = cookieFor(user);
+    const me = await request(app).get("/api/auth/session").set("Cookie", c);
+    expect(me.status).toBe(200);
+    expect(me.body.user._id).toBe(String(user._id));
+    expect(me.body.user.hash).toBeUndefined();
+    for (const cookie of [undefined, "jwt=garbage"]) {
+      const r = request(app).get("/api/auth/session");
+      const anon = await (cookie ? r.set("Cookie", cookie) : r);
+      expect(anon.status).toBe(200);
+      expect(anon.body).toEqual({ user: null });
+    }
+    await request(app).post("/api/auth/logout").set("Cookie", c);
+    expect((await request(app).get("/api/auth/session").set("Cookie", c)).body).toEqual({ user: null });
+  });
+
   test("/auth/user returns the session's user; logout blocks the token", async () => {
     const user = await createUser();
     const c = cookieFor(user);

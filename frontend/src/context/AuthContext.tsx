@@ -27,11 +27,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   async function getUser(): Promise<User | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/user`, {
+      // 200 with { user: null } when not logged in (no 401 in the console)
+      const res = await fetch(`${API_BASE_URL}/auth/session`, {
         credentials: "include",
       });
       if (!res.ok) return null;
-      return await res.json();
+      const body = (await res.json()) as { user: User | null };
+      return body.user;
     } catch (error) {
       return null;
     }
