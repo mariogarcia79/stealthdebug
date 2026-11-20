@@ -97,6 +97,13 @@ class AuthController {
     return res.json({ _id: user._id, name: user.name, email: user.email, role: user.role });
   }
 
+  // Like getUserInfo, but no session is an answer, not an error
+  static async getSession(req: Request, res: Response): Promise<Response> {
+    const user = req.user ? await UserService.getUserById(req.user._id) : null;
+    res.set("Cache-Control", "no-store");
+    return res.json({ user: user ? { _id: user._id, name: user.name, email: user.email, role: user.role } : null });
+  }
+
   static async logout(req: Request, res: Response): Promise<Response> {
     const token = req.cookies.jwt;
     if (token) {
