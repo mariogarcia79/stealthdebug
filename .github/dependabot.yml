@@ -53,6 +53,13 @@ updates:
     open-pull-requests-limit: 1
     # See backend note: majors come as individual PRs.
     groups:
+      # Exception: vite and its plugins move together, majors included.
+      # @vitejs/plugin-react 6 needs vite 8 (peer dep); bumped alone, the PR
+      # could not even `npm ci`. Listed first so it takes precedence.
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
       frontend-all:
         update-types:
           - minor
