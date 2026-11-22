@@ -4,17 +4,19 @@ on:
   pull_request:
     branches: [main]
 
-# Minimum permissions: read code, write PR comments
+# Minimum permissions: read code, write PR comments, and mint an OIDC token
+# that the action exchanges for a Claude GitHub App token.
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 
 jobs:
   claude-review:
     name: Claude code review
     runs-on: ubuntu-24.04
     # Skip fork PRs (no secret access) and bot-authored PRs (Dependabot bumps
-    # don't need an AI security review and ANTHROPIC_API_KEY would be wasted).
+    # don't need an AI security review and would burn subscription usage).
     if: |
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'dependabot[bot]'
